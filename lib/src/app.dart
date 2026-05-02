@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'movie_shell.dart';
+import 'auth_gate.dart';
 import 'theme.dart';
 
 class CineBookApp extends StatelessWidget {
@@ -12,7 +12,7 @@ class CineBookApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'CineBook',
       theme: buildCineBookTheme(),
-      home: const MovieShell(),
+      home: const AuthGate(),
     );
   }
 }

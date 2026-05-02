@@ -7,6 +7,7 @@ import 'utils.dart';
 class FeaturedCarousel extends StatelessWidget {
   const FeaturedCarousel({
     super.key,
+    required this.displayName,
     required this.movies,
     required this.currentIndex,
     required this.controller,
@@ -15,6 +16,7 @@ class FeaturedCarousel extends StatelessWidget {
     required this.onDetails,
   });
 
+  final String displayName;
   final List<Movie> movies;
   final int currentIndex;
   final PageController controller;
@@ -66,21 +68,23 @@ class FeaturedCarousel extends StatelessWidget {
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
-                              const Expanded(
+                              Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: <Widget>[
-                                    SizedBox(height: 8),
+                                    const SizedBox(height: 8),
                                     Text(
-                                      'Good evening',
-                                      style: TextStyle(
+                                      displayName == 'Guest'
+                                          ? 'Good evening'
+                                          : 'Good evening, $displayName',
+                                      style: const TextStyle(
                                         color: Color(0xFFD4D4E6),
                                         fontSize: 18,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                    SizedBox(height: 4),
-                                    Text(
+                                    const SizedBox(height: 4),
+                                    const Text(
                                       'CineBook',
                                       style: TextStyle(
                                         color: AppColors.textPrimary,

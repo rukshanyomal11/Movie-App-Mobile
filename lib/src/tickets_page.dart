@@ -7,12 +7,16 @@ import 'widgets.dart';
 class TicketsPage extends StatelessWidget {
   const TicketsPage({
     super.key,
+    required this.displayName,
     required this.tickets,
     required this.onBrowseMovies,
+    required this.onLogout,
   });
 
+  final String displayName;
   final List<BookedTicket> tickets;
   final VoidCallback onBrowseMovies;
+  final VoidCallback onLogout;
 
   @override
   Widget build(BuildContext context) {
@@ -30,13 +34,33 @@ class TicketsPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(
-              'My Tickets',
-              style: Theme.of(context).textTheme.headlineMedium,
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    'My Tickets',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.stroke),
+                  ),
+                  child: IconButton(
+                    onPressed: onLogout,
+                    icon: const Icon(Icons.logout_rounded),
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 6),
             Text(
-              'All your reservations in one place',
+              displayName == 'Guest'
+                  ? 'All your reservations in one place'
+                  : '$displayName, all your reservations in one place',
               style: Theme.of(
                 context,
               ).textTheme.bodyLarge?.copyWith(color: AppColors.textMuted),

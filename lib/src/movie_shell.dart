@@ -13,7 +13,14 @@ import 'utils.dart';
 import 'widgets.dart';
 
 class MovieShell extends StatefulWidget {
-  const MovieShell({super.key});
+  const MovieShell({
+    super.key,
+    required this.displayName,
+    required this.onLogout,
+  });
+
+  final String displayName;
+  final VoidCallback onLogout;
 
   @override
   State<MovieShell> createState() => _MovieShellState();
@@ -276,6 +283,7 @@ class _MovieShellState extends State<MovieShell> {
                 index: _currentTab.index,
                 children: <Widget>[
                   HomePage(
+                    displayName: widget.displayName,
                     feed: feed,
                     onBook: _bookMovie,
                     onMovieSelected: (movie) {
@@ -299,10 +307,12 @@ class _MovieShellState extends State<MovieShell> {
                 },
                   ),
                   TicketsPage(
+                    displayName: widget.displayName,
                     tickets: _tickets,
                     onBrowseMovies: () {
                       _openMovies();
                     },
+                    onLogout: widget.onLogout,
                   ),
                 ],
               );

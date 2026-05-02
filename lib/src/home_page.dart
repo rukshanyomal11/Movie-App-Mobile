@@ -8,12 +8,14 @@ import 'widgets.dart';
 class HomePage extends StatefulWidget {
   const HomePage({
     super.key,
+    required this.displayName,
     required this.feed,
     required this.onBook,
     required this.onMovieSelected,
     required this.onOpenMovies,
   });
 
+  final String displayName;
   final HomeFeed feed;
   final ValueChanged<Movie> onBook;
   final ValueChanged<Movie> onMovieSelected;
@@ -83,6 +85,7 @@ class _HomePageState extends State<HomePage> {
           children: <Widget>[
             if (featured.isNotEmpty)
               FeaturedCarousel(
+                displayName: widget.displayName,
                 movies: featured,
                 currentIndex: _currentHeroIndex,
                 controller: _pageController,
