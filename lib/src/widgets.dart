@@ -343,7 +343,7 @@ class MoviePosterCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${movie.primaryGenre} · ${movie.runtimeLabel}',
+              '${movie.primaryGenre} | ${movie.runtimeLabel}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -424,7 +424,7 @@ class RankedMovieTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${movie.primaryGenre} · ${movie.runtimeLabel}',
+                      '${movie.primaryGenre} | ${movie.runtimeLabel}',
                       style: const TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 13,

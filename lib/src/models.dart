@@ -140,3 +140,33 @@ class MovieDetail {
   final List<String> cast;
   final String language;
 }
+
+class ShowtimeSlot {
+  const ShowtimeSlot({
+    required this.date,
+    required this.timeLabel,
+    required this.theater,
+    required this.hall,
+    required this.format,
+    required this.price,
+    required this.seatsLeft,
+  });
+
+  final DateTime date;
+  final String timeLabel;
+  final String theater;
+  final String hall;
+  final String format;
+  final double price;
+  final int seatsLeft;
+}
+
+class ShowtimeDay {
+  const ShowtimeDay({
+    required this.date,
+    required this.slots,
+  });
+
+  final DateTime date;
+  final List<ShowtimeSlot> slots;
+}

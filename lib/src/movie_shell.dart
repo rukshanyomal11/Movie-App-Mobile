@@ -7,6 +7,7 @@ import 'movie_details_page.dart';
 import 'movies_page.dart';
 import 'repository.dart';
 import 'search_page.dart';
+import 'seat_selection_page.dart';
 import 'tickets_page.dart';
 import 'utils.dart';
 import 'widgets.dart';
@@ -26,6 +27,7 @@ class _MovieShellState extends State<MovieShell> {
   Movie? _selectedMovie;
   Future<MovieDetail>? _selectedMovieDetailFuture;
   String? _selectedMovieBadge;
+  ShowtimeSlot? _selectedShowtime;
 
   MovieRepository? _repository;
   Future<HomeFeed>? _feedFuture;
@@ -82,6 +84,7 @@ class _MovieShellState extends State<MovieShell> {
       _selectedMovie = null;
       _selectedMovieDetailFuture = null;
       _selectedMovieBadge = null;
+      _selectedShowtime = null;
     });
   }
 
@@ -96,6 +99,7 @@ class _MovieShellState extends State<MovieShell> {
       _selectedMovie = null;
       _selectedMovieDetailFuture = null;
       _selectedMovieBadge = null;
+      _selectedShowtime = null;
     });
   }
 
@@ -145,7 +149,43 @@ class _MovieShellState extends State<MovieShell> {
       _selectedMovie = movie;
       _selectedMovieBadge = badge;
       _selectedMovieDetailFuture = _repository!.fetchMovieDetail(movie.id);
+      _selectedShowtime = null;
     });
+  }
+
+  void _confirmSeatBooking(List<String> seats, double total) {
+    if (_selectedMovie == null || _selectedShowtime == null) {
+      return;
+    }
+
+    final slot = _selectedShowtime!;
+    final ticket = BookedTicket(
+      movie: _selectedMovie!,
+      bookedAt: slot.date,
+      price: total,
+      seatLabel: '${slot.timeLabel} | ${slot.hall} | ${seats.join(', ')}',
+    );
+
+    setState(() {
+      _tickets.insert(0, ticket);
+      _currentTab = AppTab.tickets;
+      _selectedMovie = null;
+      _selectedMovieDetailFuture = null;
+      _selectedMovieBadge = null;
+      _selectedShowtime = null;
+    });
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('${ticket.movie.title} booked for ${slot.timeLabel}'),
+        ),
+      );
   }
 
   @override
@@ -197,21 +237,38 @@ class _MovieShellState extends State<MovieShell> {
 
         final feed = snapshot.data!;
 
-        final body = _selectedMovie != null && _selectedMovieDetailFuture != null
-            ? MovieDetailsPage(
+        final body = _selectedMovie != null && _selectedShowtime != null
+            ? SeatSelectionPage(
                 movie: _selectedMovie!,
-                detailFuture: _selectedMovieDetailFuture!,
-                badge: _selectedMovieBadge,
+                showtime: _selectedShowtime!,
                 onBack: () {
                   setState(() {
-                    _selectedMovie = null;
-                    _selectedMovieDetailFuture = null;
-                    _selectedMovieBadge = null;
+                    _selectedShowtime = null;
                   });
                 },
-                onBook: _bookMovie,
+                onContinue: _confirmSeatBooking,
               )
-            : IndexedStack(
+            : _selectedMovie != null && _selectedMovieDetailFuture != null
+                ? MovieDetailsPage(
+                    movie: _selectedMovie!,
+                    detailFuture: _selectedMovieDetailFuture!,
+                    badge: _selectedMovieBadge,
+                    onBack: () {
+                      setState(() {
+                        _selectedMovie = null;
+                        _selectedMovieDetailFuture = null;
+                        _selectedMovieBadge = null;
+                        _selectedShowtime = null;
+                      });
+                    },
+                    onBook: _bookMovie,
+                    onSelectShowtime: (slot) {
+                      setState(() {
+                        _selectedShowtime = slot;
+                      });
+                    },
+                  )
+                : IndexedStack(
                 index: _currentTab.index,
                 children: <Widget>[
                   HomePage(

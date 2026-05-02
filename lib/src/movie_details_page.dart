@@ -14,6 +14,7 @@ class MovieDetailsPage extends StatefulWidget {
     required this.detailFuture,
     required this.onBack,
     required this.onBook,
+    required this.onSelectShowtime,
     this.badge,
   });
 
@@ -21,6 +22,7 @@ class MovieDetailsPage extends StatefulWidget {
   final Future<MovieDetail> detailFuture;
   final VoidCallback onBack;
   final ValueChanged<Movie> onBook;
+  final ValueChanged<ShowtimeSlot> onSelectShowtime;
   final String? badge;
 
   @override
@@ -29,6 +31,7 @@ class MovieDetailsPage extends StatefulWidget {
 
 class _MovieDetailsPageState extends State<MovieDetailsPage> {
   MovieDetailsTab _selectedTab = MovieDetailsTab.about;
+  int _selectedDayIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +52,10 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
           final director = detail?.director ?? 'Loading...';
           final cast = detail?.cast ?? const <String>[];
           final language = detail?.language ?? 'English';
+          final schedule = buildShowtimeSchedule(movie);
+          final safeDayIndex = schedule.isEmpty
+              ? 0
+              : _selectedDayIndex.clamp(0, schedule.length - 1) as int;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(18, 0, 18, 28),
@@ -230,16 +237,27 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
                     cast: cast,
                   )
                 else
-                  _ShowtimesTab(movie: movie),
-                const SizedBox(height: 22),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () => widget.onBook(movie),
-                    icon: const Icon(Icons.confirmation_num_outlined),
-                    label: const Text('Book Tickets'),
+                  _ShowtimesTab(
+                    schedule: schedule,
+                    selectedDayIndex: safeDayIndex,
+                    onDaySelected: (index) {
+                      setState(() {
+                        _selectedDayIndex = index;
+                      });
+                    },
+                    onSelectShowtime: widget.onSelectShowtime,
                   ),
-                ),
+                if (_selectedTab == MovieDetailsTab.about) ...<Widget>[
+                  const SizedBox(height: 22),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => widget.onBook(movie),
+                      icon: const Icon(Icons.confirmation_num_outlined),
+                      label: const Text('Book Tickets'),
+                    ),
+                  ),
+                ],
               ],
             ),
           );
@@ -343,90 +361,224 @@ class _AboutTab extends StatelessWidget {
 
 class _ShowtimesTab extends StatelessWidget {
   const _ShowtimesTab({
-    required this.movie,
+    required this.schedule,
+    required this.selectedDayIndex,
+    required this.onDaySelected,
+    required this.onSelectShowtime,
   });
 
-  final Movie movie;
+  final List<ShowtimeDay> schedule;
+  final int selectedDayIndex;
+  final ValueChanged<int> onDaySelected;
+  final ValueChanged<ShowtimeSlot> onSelectShowtime;
 
   @override
   Widget build(BuildContext context) {
-    final schedule = <String, List<String>>{
-      'Today': const <String>['1:30 PM', '4:45 PM', '8:00 PM'],
-      'Tomorrow': const <String>['12:15 PM', '3:40 PM', '7:10 PM'],
-      'Friday': const <String>['11:45 AM', '2:50 PM', '6:15 PM', '9:20 PM'],
-    };
+    final selectedDay = schedule[selectedDayIndex];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const Text(
-          'Available showtimes',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
+        SizedBox(
+          height: 74,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: schedule.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final day = schedule[index];
+              return _ShowtimeDayChip(
+                label: index == 0 ? 'Today' : formatWeekdayShort(day.date),
+                dayNumber: '${day.date.day}',
+                selected: index == selectedDayIndex,
+                onTap: () => onDaySelected(index),
+              );
+            },
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 22),
         Text(
-          'Choose your preferred slot for ${movie.title}.',
-          style: Theme.of(context).textTheme.bodyMedium,
+          'Available showtimes',
+          style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: 18),
-        for (final entry in schedule.entries)
+        for (final slot in selectedDay.slots)
           Padding(
             padding: const EdgeInsets.only(bottom: 14),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppColors.stroke),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    entry.key,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: entry.value
-                        .map(
-                          (time) => Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.04),
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(color: AppColors.stroke),
-                            ),
-                            child: Text(
-                              time,
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ],
-              ),
+            child: _ShowtimeCard(
+              slot: slot,
+              onTap: () => onSelectShowtime(slot),
             ),
           ),
       ],
+    );
+  }
+}
+
+class _ShowtimeDayChip extends StatelessWidget {
+  const _ShowtimeDayChip({
+    required this.label,
+    required this.dayNumber,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final String dayNumber;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: 64,
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.accent : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? AppColors.accent : AppColors.stroke,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? AppColors.textPrimary : AppColors.textMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              dayNumber,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                height: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShowtimeCard extends StatelessWidget {
+  const _ShowtimeCard({
+    required this.slot,
+    required this.onTap,
+  });
+
+  final ShowtimeSlot slot;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = switch (slot.format) {
+      'IMAX' => const Color(0xFF8CB4FF),
+      '3D' => const Color(0xFFD0A7FF),
+      _ => const Color(0xFFD1D1DD),
+    };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.stroke),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  slot.timeLabel,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  slot.format,
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${slot.theater} | ${slot.hall}',
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Wrap(
+                  spacing: 10,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: <Widget>[
+                    Text(
+                      '\$${slot.price.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      '${slot.seatsLeft} seats left',
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              FilledButton(
+                onPressed: onTap,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(120, 48),
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                ),
+                child: const Text('Select Seats'),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
