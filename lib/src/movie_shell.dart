@@ -133,6 +133,10 @@ class _MovieShellState extends State<MovieShell> {
               }
               setState(() {
                 _currentTab = AppTab.tickets;
+                _selectedMovie = null;
+                _selectedMovieDetailFuture = null;
+                _selectedMovieBadge = null;
+                _selectedShowtime = null;
               });
             },
           ),
@@ -287,11 +291,12 @@ class _MovieShellState extends State<MovieShell> {
                       _showMovieDetails(movie, badge: feed.badgeFor(movie));
                     },
                   ),
-                  SearchPage(
-                    repository: _repository!,
-                    onMovieSelected: (movie) {
-                      _showMovieDetails(movie);
-                    },
+              SearchPage(
+                repository: _repository!,
+                catalog: feed.allMovies,
+                onMovieSelected: (movie) {
+                  _showMovieDetails(movie);
+                },
                   ),
                   TicketsPage(
                     tickets: _tickets,

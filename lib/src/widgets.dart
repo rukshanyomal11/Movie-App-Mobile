@@ -734,10 +734,14 @@ class SearchInputField extends StatelessWidget {
     super.key,
     required this.controller,
     required this.onChanged,
+    this.showClear = false,
+    this.onClear,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final bool showClear;
+  final VoidCallback? onClear;
 
   @override
   Widget build(BuildContext context) {
@@ -760,6 +764,15 @@ class SearchInputField extends StatelessWidget {
           color: AppColors.textMuted,
           size: 26,
         ),
+        suffixIcon: showClear
+            ? IconButton(
+                onPressed: onClear,
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: AppColors.textMuted,
+                ),
+              )
+            : null,
         filled: true,
         fillColor: AppColors.surface,
         contentPadding: const EdgeInsets.symmetric(vertical: 20),
