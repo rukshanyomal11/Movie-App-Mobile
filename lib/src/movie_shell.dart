@@ -1,0 +1,238 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+import 'home_page.dart';
+import 'models.dart';
+import 'movies_page.dart';
+import 'repository.dart';
+import 'search_page.dart';
+import 'tickets_page.dart';
+import 'utils.dart';
+import 'widgets.dart';
+
+class MovieShell extends StatefulWidget {
+  const MovieShell({super.key});
+
+  @override
+  State<MovieShell> createState() => _MovieShellState();
+}
+
+class _MovieShellState extends State<MovieShell> {
+  AppTab _currentTab = AppTab.home;
+  MovieCategoryTab _moviesCategory = MovieCategoryTab.all;
+  int? _moviesGenreId;
+  final List<BookedTicket> _tickets = <BookedTicket>[];
+
+  MovieRepository? _repository;
+  Future<HomeFeed>? _feedFuture;
+  String? _setupMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _bootstrap();
+  }
+
+  @override
+  void dispose() {
+    _repository?.dispose();
+    super.dispose();
+  }
+
+  void _bootstrap() {
+    final apiKey =
+        (dotenv.env['VITE_TMDB_API_KEY'] ?? dotenv.env['TMDB_API_KEY'] ?? '')
+            .trim();
+
+    if (apiKey.isEmpty) {
+      setState(() {
+        _setupMessage =
+            'Add VITE_TMDB_API_KEY to .env so the app can load TMDB movies.';
+      });
+      return;
+    }
+
+    _repository?.dispose();
+    final repository = MovieRepository(apiKey: apiKey);
+
+    setState(() {
+      _setupMessage = null;
+      _repository = repository;
+      _feedFuture = repository.fetchHomeFeed();
+    });
+  }
+
+  void _reloadFeed() {
+    if (_repository == null) {
+      return;
+    }
+
+    setState(() {
+      _feedFuture = _repository!.fetchHomeFeed();
+    });
+  }
+
+  void _selectTab(AppTab tab) {
+    setState(() {
+      _currentTab = tab;
+    });
+  }
+
+  void _openMovies({
+    MovieCategoryTab category = MovieCategoryTab.all,
+    int? genreId,
+  }) {
+    setState(() {
+      _currentTab = AppTab.movies;
+      _moviesCategory = category;
+      _moviesGenreId = genreId;
+    });
+  }
+
+  void _bookMovie(Movie movie) {
+    final order = _tickets.length + 1;
+    final ticket = BookedTicket(
+      movie: movie,
+      bookedAt: DateTime.now().add(Duration(days: order.isEven ? 1 : 0)),
+      price: (10 + movie.rating).clamp(12, 24).toDouble(),
+      seatLabel: buildSeatLabel(movie, order),
+    );
+
+    setState(() {
+      _tickets.insert(0, ticket);
+    });
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('${movie.title} added to My Tickets'),
+          action: SnackBarAction(
+            label: 'View',
+            onPressed: () {
+              if (!mounted) {
+                return;
+              }
+              setState(() {
+                _currentTab = AppTab.tickets;
+              });
+            },
+          ),
+        ),
+      );
+  }
+
+  Future<void> _showMovieDetails(Movie movie, {String? badge}) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return MovieDetailsSheet(
+          movie: movie,
+          badge: badge,
+          onBook: () {
+            Navigator.of(sheetContext).pop();
+            _bookMovie(movie);
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_setupMessage != null) {
+      return Scaffold(
+        body: SafeArea(
+          child: SetupStateView(message: _setupMessage!, onRetry: _bootstrap),
+        ),
+      );
+    }
+
+    if (_repository == null || _feedFuture == null) {
+      return const Scaffold(
+        body: SafeArea(
+          child: LoadingStateView(
+            title: 'Preparing CineBook',
+            subtitle: 'Warming up the theater lights...',
+          ),
+        ),
+      );
+    }
+
+    return FutureBuilder<HomeFeed>(
+      future: _feedFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            body: SafeArea(
+              child: LoadingStateView(
+                title: 'Loading Movies',
+                subtitle: 'Pulling the latest showtimes from TMDB...',
+              ),
+            ),
+          );
+        }
+
+        if (snapshot.hasError || !snapshot.hasData) {
+          return Scaffold(
+            body: SafeArea(
+              child: ErrorStateView(
+                message: snapshot.error?.toString() ??
+                    'We could not load movies right now.',
+                onRetry: _reloadFeed,
+              ),
+            ),
+          );
+        }
+
+        final feed = snapshot.data!;
+
+        return Scaffold(
+          body: IndexedStack(
+            index: _currentTab.index,
+            children: <Widget>[
+              HomePage(
+                feed: feed,
+                onBook: _bookMovie,
+                onMovieSelected: (movie) {
+                  _showMovieDetails(movie, badge: feed.badgeFor(movie));
+                },
+                onOpenMovies: _openMovies,
+              ),
+              MoviesPage(
+                feed: feed,
+                initialCategory: _moviesCategory,
+                initialGenreId: _moviesGenreId,
+                onMovieSelected: (movie) {
+                  _showMovieDetails(movie, badge: feed.badgeFor(movie));
+                },
+              ),
+              SearchPage(
+                repository: _repository!,
+                onMovieSelected: (movie) {
+                  _showMovieDetails(movie);
+                },
+              ),
+              TicketsPage(
+                tickets: _tickets,
+                onBrowseMovies: () {
+                  _openMovies();
+                },
+              ),
+            ],
+          ),
+          bottomNavigationBar: AppBottomNavigationBar(
+            currentTab: _currentTab,
+            onSelect: _selectTab,
+          ),
+        );
+      },
+    );
+  }
+}
