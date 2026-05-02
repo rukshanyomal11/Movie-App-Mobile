@@ -23,6 +23,15 @@ String formatDate(DateTime value) {
   return '${months[value.month - 1]} ${value.day}, ${value.year}';
 }
 
+String formatReleaseDate(String rawDate) {
+  final value = DateTime.tryParse(rawDate);
+  if (value == null) {
+    return rawDate.isEmpty ? 'TBA' : rawDate;
+  }
+
+  return formatDate(value);
+}
+
 String buildSeatLabel(Movie movie, int order) {
   const rows = <String>['A', 'B', 'C', 'D', 'E', 'F'];
   final hallCode = String.fromCharCode(65 + ((movie.id + order) % 3));

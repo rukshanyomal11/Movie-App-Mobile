@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'home_page.dart';
 import 'models.dart';
+import 'movie_details_page.dart';
 import 'movies_page.dart';
 import 'repository.dart';
 import 'search_page.dart';
@@ -22,6 +23,9 @@ class _MovieShellState extends State<MovieShell> {
   MovieCategoryTab _moviesCategory = MovieCategoryTab.all;
   int? _moviesGenreId;
   final List<BookedTicket> _tickets = <BookedTicket>[];
+  Movie? _selectedMovie;
+  Future<MovieDetail>? _selectedMovieDetailFuture;
+  String? _selectedMovieBadge;
 
   MovieRepository? _repository;
   Future<HomeFeed>? _feedFuture;
@@ -75,6 +79,9 @@ class _MovieShellState extends State<MovieShell> {
   void _selectTab(AppTab tab) {
     setState(() {
       _currentTab = tab;
+      _selectedMovie = null;
+      _selectedMovieDetailFuture = null;
+      _selectedMovieBadge = null;
     });
   }
 
@@ -86,6 +93,9 @@ class _MovieShellState extends State<MovieShell> {
       _currentTab = AppTab.movies;
       _moviesCategory = category;
       _moviesGenreId = genreId;
+      _selectedMovie = null;
+      _selectedMovieDetailFuture = null;
+      _selectedMovieBadge = null;
     });
   }
 
@@ -126,22 +136,16 @@ class _MovieShellState extends State<MovieShell> {
       );
   }
 
-  Future<void> _showMovieDetails(Movie movie, {String? badge}) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return MovieDetailsSheet(
-          movie: movie,
-          badge: badge,
-          onBook: () {
-            Navigator.of(sheetContext).pop();
-            _bookMovie(movie);
-          },
-        );
-      },
-    );
+  void _showMovieDetails(Movie movie, {String? badge}) {
+    if (_repository == null) {
+      return;
+    }
+
+    setState(() {
+      _selectedMovie = movie;
+      _selectedMovieBadge = badge;
+      _selectedMovieDetailFuture = _repository!.fetchMovieDetail(movie.id);
+    });
   }
 
   @override
@@ -193,40 +197,56 @@ class _MovieShellState extends State<MovieShell> {
 
         final feed = snapshot.data!;
 
-        return Scaffold(
-          body: IndexedStack(
-            index: _currentTab.index,
-            children: <Widget>[
-              HomePage(
-                feed: feed,
+        final body = _selectedMovie != null && _selectedMovieDetailFuture != null
+            ? MovieDetailsPage(
+                movie: _selectedMovie!,
+                detailFuture: _selectedMovieDetailFuture!,
+                badge: _selectedMovieBadge,
+                onBack: () {
+                  setState(() {
+                    _selectedMovie = null;
+                    _selectedMovieDetailFuture = null;
+                    _selectedMovieBadge = null;
+                  });
+                },
                 onBook: _bookMovie,
-                onMovieSelected: (movie) {
-                  _showMovieDetails(movie, badge: feed.badgeFor(movie));
-                },
-                onOpenMovies: _openMovies,
-              ),
-              MoviesPage(
-                feed: feed,
-                initialCategory: _moviesCategory,
-                initialGenreId: _moviesGenreId,
-                onMovieSelected: (movie) {
-                  _showMovieDetails(movie, badge: feed.badgeFor(movie));
-                },
-              ),
-              SearchPage(
-                repository: _repository!,
-                onMovieSelected: (movie) {
-                  _showMovieDetails(movie);
-                },
-              ),
-              TicketsPage(
-                tickets: _tickets,
-                onBrowseMovies: () {
-                  _openMovies();
-                },
-              ),
-            ],
-          ),
+              )
+            : IndexedStack(
+                index: _currentTab.index,
+                children: <Widget>[
+                  HomePage(
+                    feed: feed,
+                    onBook: _bookMovie,
+                    onMovieSelected: (movie) {
+                      _showMovieDetails(movie, badge: feed.badgeFor(movie));
+                    },
+                    onOpenMovies: _openMovies,
+                  ),
+                  MoviesPage(
+                    feed: feed,
+                    initialCategory: _moviesCategory,
+                    initialGenreId: _moviesGenreId,
+                    onMovieSelected: (movie) {
+                      _showMovieDetails(movie, badge: feed.badgeFor(movie));
+                    },
+                  ),
+                  SearchPage(
+                    repository: _repository!,
+                    onMovieSelected: (movie) {
+                      _showMovieDetails(movie);
+                    },
+                  ),
+                  TicketsPage(
+                    tickets: _tickets,
+                    onBrowseMovies: () {
+                      _openMovies();
+                    },
+                  ),
+                ],
+              );
+
+        return Scaffold(
+          body: body,
           bottomNavigationBar: AppBottomNavigationBar(
             currentTab: _currentTab,
             onSelect: _selectTab,

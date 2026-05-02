@@ -126,3 +126,17 @@ class BookedTicket {
   final String seatLabel;
   final bool cancelled;
 }
+
+class MovieDetail {
+  const MovieDetail({
+    required this.movie,
+    required this.director,
+    required this.cast,
+    required this.language,
+  });
+
+  final Movie movie;
+  final String director;
+  final List<String> cast;
+  final String language;
+}

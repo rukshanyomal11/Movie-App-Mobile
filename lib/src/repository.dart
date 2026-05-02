@@ -58,6 +58,70 @@ class MovieRepository {
     return _parseMovies(json, genres);
   }
 
+  Future<MovieDetail> fetchMovieDetail(int movieId) async {
+    final json = await _getJson(
+      '/movie/$movieId',
+      queryParameters: <String, String>{
+        'append_to_response': 'credits',
+      },
+    );
+
+    final movie = _movieFromJson(json, const <int, String>{});
+    final credits = json['credits'];
+
+    String director = 'Unknown';
+    final cast = <String>[];
+    String language = 'English';
+
+    if (credits is Map<String, dynamic>) {
+      final crew = credits['crew'];
+      if (crew is List) {
+        for (final member in crew) {
+          if (member is Map<String, dynamic> && member['job'] == 'Director') {
+            final name = member['name'];
+            if (name is String && name.isNotEmpty) {
+              director = name;
+              break;
+            }
+          }
+        }
+      }
+
+      final castEntries = credits['cast'];
+      if (castEntries is List) {
+        for (final member in castEntries.take(6)) {
+          if (member is Map<String, dynamic>) {
+            final name = member['name'];
+            if (name is String && name.isNotEmpty) {
+              cast.add(name);
+            }
+          }
+        }
+      }
+    }
+
+    final spokenLanguages = json['spoken_languages'];
+    if (spokenLanguages is List && spokenLanguages.isNotEmpty) {
+      final first = spokenLanguages.first;
+      if (first is Map<String, dynamic>) {
+        final englishName = first['english_name'];
+        final name = first['name'];
+        if (englishName is String && englishName.isNotEmpty) {
+          language = englishName;
+        } else if (name is String && name.isNotEmpty) {
+          language = name;
+        }
+      }
+    }
+
+    return MovieDetail(
+      movie: movie,
+      director: director,
+      cast: cast,
+      language: language,
+    );
+  }
+
   Future<Map<int, String>> _fetchGenreMap() async {
     final json = await _getJson('/genre/movie/list');
     final entries = json['genres'];
