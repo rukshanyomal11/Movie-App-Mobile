@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import 'models.dart';
 import 'theme.dart';
@@ -52,6 +54,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
           final director = detail?.director ?? 'Loading...';
           final cast = detail?.cast ?? const <String>[];
           final language = detail?.language ?? 'English';
+          final trailer = detail?.trailer;
           final schedule = buildShowtimeSchedule(movie);
           final safeDayIndex = schedule.isEmpty
               ? 0
@@ -235,6 +238,8 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
                     movie: movie,
                     director: director,
                     cast: cast,
+                    trailer: trailer,
+                    isLoadingTrailer: !snapshot.hasData && !snapshot.hasError,
                   )
                 else
                   _ShowtimesTab(
@@ -272,11 +277,15 @@ class _AboutTab extends StatelessWidget {
     required this.movie,
     required this.director,
     required this.cast,
+    required this.trailer,
+    required this.isLoadingTrailer,
   });
 
   final Movie movie;
   final String director;
   final List<String> cast;
+  final MovieTrailer? trailer;
+  final bool isLoadingTrailer;
 
   @override
   Widget build(BuildContext context) {
@@ -288,6 +297,11 @@ class _AboutTab extends StatelessWidget {
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: const Color(0xFFD2D2E0),
               ),
+        ),
+        const SizedBox(height: 24),
+        _TrailerSection(
+          trailer: trailer,
+          isLoading: isLoadingTrailer,
         ),
         const SizedBox(height: 24),
         GridView.count(
@@ -355,6 +369,256 @@ class _AboutTab extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _TrailerSection extends StatelessWidget {
+  const _TrailerSection({
+    required this.trailer,
+    required this.isLoading,
+  });
+
+  final MovieTrailer? trailer;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          'Trailer',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 14),
+        if (isLoading)
+          const _TrailerStatusCard(
+            icon: Icons.ondemand_video_outlined,
+            title: 'Loading trailer',
+            message: 'Fetching the latest trailer for this movie.',
+          )
+        else if (trailer != null)
+          _InlineTrailerCard(trailer: trailer!)
+        else
+          const _TrailerStatusCard(
+            icon: Icons.movie_creation_outlined,
+            title: 'Trailer unavailable',
+            message: 'No YouTube trailer is available for this title yet.',
+          ),
+      ],
+    );
+  }
+}
+
+class _InlineTrailerCard extends StatefulWidget {
+  const _InlineTrailerCard({
+    required this.trailer,
+  });
+
+  final MovieTrailer trailer;
+
+  @override
+  State<_InlineTrailerCard> createState() => _InlineTrailerCardState();
+}
+
+class _InlineTrailerCardState extends State<_InlineTrailerCard> {
+  YoutubePlayerController? _controller;
+
+  bool get _supportsInlinePlayback {
+    if (kIsWeb) {
+      return true;
+    }
+
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.android ||
+      TargetPlatform.iOS ||
+      TargetPlatform.macOS => true,
+      TargetPlatform.fuchsia ||
+      TargetPlatform.linux ||
+      TargetPlatform.windows => false,
+    };
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _createController();
+  }
+
+  @override
+  void didUpdateWidget(covariant _InlineTrailerCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.trailer.youtubeKey != widget.trailer.youtubeKey) {
+      _controller?.close();
+      _createController();
+    }
+  }
+
+  void _createController() {
+    if (!_supportsInlinePlayback) {
+      _controller = null;
+      return;
+    }
+
+    _controller = YoutubePlayerController.fromVideoId(
+      videoId: widget.trailer.youtubeKey,
+      autoPlay: false,
+      params: const YoutubePlayerParams(
+        showControls: true,
+        showFullscreenButton: false,
+        strictRelatedVideos: true,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller?.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_supportsInlinePlayback || _controller == null) {
+      return _TrailerStatusCard(
+        icon: Icons.play_circle_outline_rounded,
+        title: widget.trailer.name,
+        message: 'Trailer playback is supported on Android, iOS, macOS, and web.',
+        imageUrl: widget.trailer.thumbnailUrl,
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.stroke),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: YoutubePlayer(
+                controller: _controller!,
+                aspectRatio: 16 / 9,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            widget.trailer.name,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Watch the trailer right from the movie details page.',
+            style: TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrailerStatusCard extends StatelessWidget {
+  const _TrailerStatusCard({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.imageUrl,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.stroke),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            if (imageUrl != null)
+              SizedBox(
+                height: 180,
+                width: double.infinity,
+                child: NetworkArtwork(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      icon,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          message,
+                          style: const TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

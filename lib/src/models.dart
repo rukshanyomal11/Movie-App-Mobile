@@ -133,12 +133,26 @@ class MovieDetail {
     required this.director,
     required this.cast,
     required this.language,
+    this.trailer,
   });
 
   final Movie movie;
   final String director;
   final List<String> cast;
   final String language;
+  final MovieTrailer? trailer;
+}
+
+class MovieTrailer {
+  const MovieTrailer({
+    required this.name,
+    required this.youtubeKey,
+  });
+
+  final String name;
+  final String youtubeKey;
+
+  String get thumbnailUrl => 'https://img.youtube.com/vi/$youtubeKey/hqdefault.jpg';
 }
 
 class ShowtimeSlot {

@@ -62,12 +62,13 @@ class MovieRepository {
     final json = await _getJson(
       '/movie/$movieId',
       queryParameters: <String, String>{
-        'append_to_response': 'credits',
+        'append_to_response': 'credits,videos',
       },
     );
 
     final movie = _movieFromJson(json, const <int, String>{});
     final credits = json['credits'];
+    final trailer = _pickTrailer(json);
 
     String director = 'Unknown';
     final cast = <String>[];
@@ -119,6 +120,7 @@ class MovieRepository {
       director: director,
       cast: cast,
       language: language,
+      trailer: trailer,
     );
   }
 
@@ -212,6 +214,53 @@ class MovieRepository {
       adult: json['adult'] == true,
       runtimeMinutes: (json['runtime'] as num?)?.toInt(),
     );
+  }
+
+  MovieTrailer? _pickTrailer(Map<String, dynamic> json) {
+    final videos = json['videos'];
+    if (videos is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final results = videos['results'];
+    if (results is! List) {
+      return null;
+    }
+
+    MovieTrailer? bestMatch;
+    var bestScore = -1;
+
+    for (final item in results) {
+      if (item is! Map<String, dynamic>) {
+        continue;
+      }
+
+      final site = item['site'];
+      final key = item['key'];
+      if (site != 'YouTube' || key is! String || key.isEmpty) {
+        continue;
+      }
+
+      final type = (item['type'] ?? '').toString();
+      final official = item['official'] == true;
+      final score = switch (type) {
+        'Trailer' => official ? 6 : 4,
+        'Teaser' => official ? 3 : 2,
+        _ => official ? 1 : 0,
+      };
+
+      if (score <= bestScore) {
+        continue;
+      }
+
+      bestScore = score;
+      bestMatch = MovieTrailer(
+        name: (item['name'] ?? 'Trailer').toString(),
+        youtubeKey: key,
+      );
+    }
+
+    return bestMatch;
   }
 
   Future<Map<String, dynamic>> _getJson(
