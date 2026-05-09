@@ -31,7 +31,21 @@ class _SearchPageState extends State<SearchPage> {
   String? _errorMessage;
   String? _resultLabel;
   List<Movie> _results = const <Movie>[];
+  List<Movie> _savedResults = const <Movie>[];
   int? _selectedGenreId;
+  String _savedQuery = '';
+  String? _savedErrorMessage;
+  String? _savedResultLabel;
+
+  GenreOption? get _selectedGenre {
+    for (final genre in popularGenres) {
+      if (genre.id == _selectedGenreId) {
+        return genre;
+      }
+    }
+
+    return null;
+  }
 
   @override
   void dispose() {
@@ -112,6 +126,11 @@ class _SearchPageState extends State<SearchPage> {
 
   Future<void> _searchByGenre(GenreOption genre) async {
     final token = ++_requestToken;
+    _debounce?.cancel();
+    _savedQuery = _controller.text;
+    _savedResults = List<Movie>.from(_results);
+    _savedErrorMessage = _errorMessage;
+    _savedResultLabel = _resultLabel;
     _controller.clear();
 
     setState(() {
@@ -119,6 +138,7 @@ class _SearchPageState extends State<SearchPage> {
       _isLoading = true;
       _errorMessage = null;
       _resultLabel = '${genre.label} picks';
+      _results = const <Movie>[];
     });
 
     try {
@@ -143,8 +163,29 @@ class _SearchPageState extends State<SearchPage> {
     }
   }
 
+  void _clearGenreSelection() {
+    _debounce?.cancel();
+    _requestToken++;
+    final restoredQuery = _savedQuery;
+
+    _controller.value = TextEditingValue(
+      text: restoredQuery,
+      selection: TextSelection.collapsed(offset: restoredQuery.length),
+    );
+
+    setState(() {
+      _selectedGenreId = null;
+      _isLoading = false;
+      _errorMessage = _savedErrorMessage;
+      _resultLabel = _savedResultLabel;
+      _results = List<Movie>.from(_savedResults);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final selectedGenre = _selectedGenre;
+
     return SafeArea(
       bottom: false,
       child: SingleChildScrollView(
@@ -228,25 +269,31 @@ class _SearchPageState extends State<SearchPage> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 18),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: popularGenres.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 1.7,
-                mainAxisSpacing: 14,
-                crossAxisSpacing: 14,
+            if (selectedGenre != null)
+              _SelectedGenreRow(
+                genreLabel: selectedGenre.label,
+                onBack: _clearGenreSelection,
+              )
+            else
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: popularGenres.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 1.7,
+                  mainAxisSpacing: 14,
+                  crossAxisSpacing: 14,
+                ),
+                itemBuilder: (context, index) {
+                  final genre = popularGenres[index];
+                  return GenreTile(
+                    label: genre.label,
+                    selected: _selectedGenreId == genre.id,
+                    onTap: () => _searchByGenre(genre),
+                  );
+                },
               ),
-              itemBuilder: (context, index) {
-                final genre = popularGenres[index];
-                return GenreTile(
-                  label: genre.label,
-                  selected: _selectedGenreId == genre.id,
-                  onTap: () => _searchByGenre(genre),
-                );
-              },
-            ),
             const SizedBox(height: 26),
             if (_isLoading)
               const Padding(
@@ -365,5 +412,61 @@ class _SearchPageState extends State<SearchPage> {
     }
 
     return merged;
+  }
+}
+
+class _SelectedGenreRow extends StatelessWidget {
+  const _SelectedGenreRow({
+    required this.genreLabel,
+    required this.onBack,
+  });
+
+  final String genreLabel;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: <Widget>[
+        GestureDetector(
+          onTap: onBack,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: AppColors.stroke),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: AppColors.textPrimary,
+                  size: 14,
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'Back',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        FilterChipPill(
+          label: genreLabel,
+          selected: true,
+          onTap: onBack,
+        ),
+      ],
+    );
   }
 }
