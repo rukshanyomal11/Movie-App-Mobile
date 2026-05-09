@@ -28,9 +28,9 @@ class MovieRepository {
     // Ensure it's treated as a list, even if Supabase returns null or dynamic
     final List<dynamic> sbMovies = (response as List<dynamic>?) ?? <dynamic>[];
 
-    // 2. Separate into Now Playing (now_showing, featured) and Upcoming
-    final nowShowingIds = <int>[];
-    final upcomingIds = <int>[];
+    // 2. Separate into Now Playing (now_showing, featured) and Upcoming (using Set to deduplicate)
+    final nowShowingIds = <int>{};
+    final upcomingIds = <int>{};
     
     for (final row in sbMovies) {
       if (row == null || row is! Map) continue;
@@ -49,7 +49,7 @@ class MovieRepository {
     }
 
     // 3. Helper to fetch TMDB details for a list of IDs
-    Future<List<Movie>> fetchMoviesByIds(List<int> ids) async {
+    Future<List<Movie>> fetchMoviesByIds(Set<int> ids) async {
       if (ids.isEmpty) return <Movie>[];
       final futures = ids.map((id) => _getJson('/movie/$id').catchError((_) => <String, dynamic>{}));
       final jsons = await Future.wait(futures);
@@ -104,12 +104,39 @@ class MovieRepository {
   }
 
   Future<MovieDetail> fetchMovieDetail(int movieId) async {
-    final json = await _getJson(
-      '/movie/$movieId',
-      queryParameters: <String, String>{
-        'append_to_response': 'credits,videos',
-      },
-    );
+    final futures = await Future.wait<dynamic>([
+      _getJson(
+        '/movie/$movieId',
+        queryParameters: <String, String>{
+          'append_to_response': 'credits,videos',
+        },
+      ),
+      Supabase.instance.client
+          .from('movies')
+          .select('''
+            id,
+            showtimes (
+              id,
+              show_date,
+              start_time,
+              ticket_price,
+              seats_available,
+              screens (
+                name,
+                format,
+                theaters (
+                  name,
+                  city
+                )
+              )
+            )
+          ''')
+          .eq('tmdb_id', movieId)
+          .catchError((_) => <dynamic>[])
+    ]);
+
+    final json = futures[0] as Map<String, dynamic>;
+    final sbMoviesList = futures[1] as List<dynamic>?;
 
     final movie = _movieFromJson(json, const <int, String>{});
     final credits = json['credits'];
@@ -160,12 +187,76 @@ class MovieRepository {
       }
     }
 
+    final List<ShowtimeDay> schedule = [];
+    if (sbMoviesList != null) {
+      final Map<String, List<ShowtimeSlot>> grouped = {};
+      
+      for (final movieRow in sbMoviesList) {
+        if (movieRow is! Map || movieRow['showtimes'] is! List) continue;
+        final showtimes = movieRow['showtimes'] as List<dynamic>;
+        
+        for (final st in showtimes) {
+          if (st is! Map) continue;
+        
+        final dateStr = st['show_date']?.toString() ?? '';
+        final timeStr = st['start_time']?.toString() ?? '';
+        if (dateStr.isEmpty) continue;
+        
+        final date = DateTime.tryParse(dateStr);
+        if (date == null) continue;
+        
+        final screen = st['screens'];
+        final theater = screen is Map ? screen['theaters'] : null;
+        
+        // Format time HH:MM:SS to HH:MM AM/PM
+        String formattedTime = timeStr;
+        if (timeStr.length >= 5) {
+          final parts = timeStr.split(':');
+          if (parts.length >= 2) {
+            int hour = int.tryParse(parts[0]) ?? 0;
+            final min = parts[1];
+            final ampm = hour >= 12 ? 'PM' : 'AM';
+            hour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+            formattedTime = '$hour:$min $ampm';
+          }
+        }
+        
+        final theaterName = theater is Map ? theater['name']?.toString() ?? 'Theater' : 'Theater';
+        final theaterCity = theater is Map ? theater['city']?.toString() ?? '' : '';
+        final fullTheater = theaterCity.isNotEmpty ? '$theaterName - $theaterCity' : theaterName;
+        
+        final slot = ShowtimeSlot(
+          date: date,
+          timeLabel: formattedTime,
+          theater: fullTheater,
+          hall: screen is Map ? screen['name']?.toString() ?? 'Screen' : 'Screen',
+          format: screen is Map ? screen['format']?.toString() ?? '2D' : '2D',
+          price: double.tryParse(st['ticket_price']?.toString() ?? '0') ?? 0.0,
+          seatsLeft: st['seats_available'] is num ? (st['seats_available'] as num).toInt() : 0,
+        );
+        
+        if (!grouped.containsKey(dateStr)) {
+          grouped[dateStr] = [];
+        }
+        grouped[dateStr]!.add(slot);
+      }
+    }
+      
+    final sortedDates = grouped.keys.toList()..sort();
+      for (final d in sortedDates) {
+        final dateObj = DateTime.parse(d);
+        final slots = grouped[d]!..sort((a, b) => a.timeLabel.compareTo(b.timeLabel));
+        schedule.add(ShowtimeDay(date: dateObj, slots: slots));
+      }
+    }
+
     return MovieDetail(
       movie: movie,
       director: director,
       cast: cast,
       language: language,
       trailer: trailer,
+      schedule: schedule,
     );
   }
 

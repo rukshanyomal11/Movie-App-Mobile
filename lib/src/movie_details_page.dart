@@ -56,7 +56,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
           final cast = detail?.cast ?? const <String>[];
           final language = detail?.language ?? 'English';
           final trailer = detail?.trailer;
-          final schedule = buildShowtimeSchedule(movie);
+          final schedule = detail?.schedule ?? const [];
           final safeDayIndex = schedule.isEmpty
               ? 0
               : _selectedDayIndex.clamp(0, schedule.length - 1) as int;
@@ -260,7 +260,11 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
-                      onPressed: () => widget.onBook(movie),
+                      onPressed: () {
+                        setState(() {
+                          _selectedTab = MovieDetailsTab.showtimes;
+                        });
+                      },
                       icon: const Icon(Icons.confirmation_num_outlined),
                       label: const Text('Book Tickets'),
                     ),
@@ -643,6 +647,13 @@ class _ShowtimesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (schedule.isEmpty) {
+      return const EmptyCollectionCard(
+        title: 'No showtimes yet',
+        subtitle: 'Check back later for available dates and times.',
+      );
+    }
+
     final selectedDay = schedule[selectedDayIndex];
 
     return Column(

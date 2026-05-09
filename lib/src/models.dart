@@ -136,6 +136,7 @@ class MovieDetail {
     required this.cast,
     required this.language,
     this.trailer,
+    this.schedule = const [],
   });
 
   final Movie movie;
@@ -143,6 +144,7 @@ class MovieDetail {
   final List<String> cast;
   final String language;
   final MovieTrailer? trailer;
+  final List<ShowtimeDay> schedule;
 }
 
 class MovieTrailer {
