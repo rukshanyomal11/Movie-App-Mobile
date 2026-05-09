@@ -197,17 +197,6 @@ class _MoviesPageState extends State<MoviesPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Text(
-                          'Page ${currentPage + 1} of $pageCount',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Showing ${startIndex + 1}-$endIndex of ${movies.length} movies',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: AppColors.textMuted),
-                        ),
-                        const SizedBox(height: 16),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: <Widget>[
@@ -218,22 +207,10 @@ class _MoviesPageState extends State<MoviesPage> {
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: Row(
-                                  children: List<Widget>.generate(
-                                    pageCount,
-                                    (index) => Padding(
-                                      padding: EdgeInsets.only(
-                                        right: index == pageCount - 1 ? 0 : 10,
-                                      ),
-                                      child: _PageNumberChip(
-                                        label: '${index + 1}',
-                                        selected: index == currentPage,
-                                        onTap: () => _goToPage(index),
-                                      ),
-                                    ),
-                                  ),
+                              child: Center(
+                                child: _PageNumberChip(
+                                  label: '${currentPage + 1}',
+                                  selected: true,
                                 ),
                               ),
                             ),
@@ -294,12 +271,12 @@ class _PageNumberChip extends StatelessWidget {
   const _PageNumberChip({
     required this.label,
     required this.selected,
-    required this.onTap,
+    this.onTap,
   });
 
   final String label;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
