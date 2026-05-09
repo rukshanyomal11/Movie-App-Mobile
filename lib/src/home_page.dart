@@ -13,6 +13,7 @@ class HomePage extends StatefulWidget {
     required this.onBook,
     required this.onMovieSelected,
     required this.onOpenMovies,
+    required this.onOpenSearch,
   });
 
   final String displayName;
@@ -20,6 +21,7 @@ class HomePage extends StatefulWidget {
   final ValueChanged<Movie> onBook;
   final ValueChanged<Movie> onMovieSelected;
   final OpenMoviesCallback onOpenMovies;
+  final VoidCallback onOpenSearch;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -94,6 +96,7 @@ class _HomePageState extends State<HomePage> {
                     _currentHeroIndex = index;
                   });
                 },
+                onSearchTap: widget.onOpenSearch,
                 onBook: widget.onBook,
                 onDetails: widget.onMovieSelected,
               ),

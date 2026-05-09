@@ -290,6 +290,9 @@ class _MovieShellState extends State<MovieShell> {
                       _showMovieDetails(movie, badge: feed.badgeFor(movie));
                     },
                     onOpenMovies: _openMovies,
+                    onOpenSearch: () {
+                      _selectTab(AppTab.search);
+                    },
                   ),
                   MoviesPage(
                     feed: feed,

@@ -12,6 +12,7 @@ class FeaturedCarousel extends StatelessWidget {
     required this.currentIndex,
     required this.controller,
     required this.onPageChanged,
+    required this.onSearchTap,
     required this.onBook,
     required this.onDetails,
   });
@@ -21,6 +22,7 @@ class FeaturedCarousel extends StatelessWidget {
   final int currentIndex;
   final PageController controller;
   final ValueChanged<int> onPageChanged;
+  final VoidCallback onSearchTap;
   final ValueChanged<Movie> onBook;
   final ValueChanged<Movie> onDetails;
 
@@ -97,7 +99,7 @@ class FeaturedCarousel extends StatelessWidget {
                               ),
                               CircularIconButton(
                                 icon: Icons.search_rounded,
-                                onTap: () {},
+                                onTap: onSearchTap,
                               ),
                               const SizedBox(width: 12),
                               CircularIconButton(
