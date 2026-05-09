@@ -43,6 +43,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
       final value? => value,
       null => null,
     };
+    final isNowPlaying = widget.badge == 'NOW';
 
     return SafeArea(
       bottom: false,
@@ -193,47 +194,49 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
                   ],
                 ),
                 const SizedBox(height: 96),
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: AppColors.stroke),
-                  ),
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: _TabPill(
-                          label: 'About',
-                          selected: _selectedTab == MovieDetailsTab.about,
-                          onTap: () {
-                            setState(() {
-                              _selectedTab = MovieDetailsTab.about;
-                            });
-                          },
+                if (isNowPlaying) ...[
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: AppColors.stroke),
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: _TabPill(
+                            label: 'About',
+                            selected: _selectedTab == MovieDetailsTab.about,
+                            onTap: () {
+                              setState(() {
+                                _selectedTab = MovieDetailsTab.about;
+                              });
+                            },
+                          ),
                         ),
-                      ),
-                      Expanded(
-                        child: _TabPill(
-                          label: 'Showtimes',
-                          selected: _selectedTab == MovieDetailsTab.showtimes,
-                          onTap: () {
-                            setState(() {
-                              _selectedTab = MovieDetailsTab.showtimes;
-                            });
-                          },
+                        Expanded(
+                          child: _TabPill(
+                            label: 'Showtimes',
+                            selected: _selectedTab == MovieDetailsTab.showtimes,
+                            onTap: () {
+                              setState(() {
+                                _selectedTab = MovieDetailsTab.showtimes;
+                              });
+                            },
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 24),
+                  const SizedBox(height: 24),
+                ],
                 if (snapshot.hasError)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 18),
                     child: ErrorInlineCard(message: snapshot.error.toString()),
                   ),
-                if (_selectedTab == MovieDetailsTab.about)
+                if (!isNowPlaying || _selectedTab == MovieDetailsTab.about)
                   _AboutTab(
                     movie: movie,
                     director: director,
@@ -252,7 +255,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
                     },
                     onSelectShowtime: widget.onSelectShowtime,
                   ),
-                if (_selectedTab == MovieDetailsTab.about) ...<Widget>[
+                if (isNowPlaying && _selectedTab == MovieDetailsTab.about) ...<Widget>[
                   const SizedBox(height: 22),
                   SizedBox(
                     width: double.infinity,
