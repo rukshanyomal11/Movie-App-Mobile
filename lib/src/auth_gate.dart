@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'movie_shell.dart';
 import 'theme.dart';
@@ -296,7 +297,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  'Demo mode: this design stores auth locally in the app for now.',
+                                  'Secure authentication powered by Supabase.',
                                   style: Theme.of(context).textTheme.bodyMedium
                                       ?.copyWith(
                                         color: const Color(0xFF8E8FA5),
@@ -323,27 +324,68 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
 
-    setState(() {
-      _isSubmitting = true;
-    });
+    try {
+      final email = _emailController.text.trim();
+      final password = _passwordController.text.trim();
+      final name = _nameController.text.trim();
 
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    if (!mounted) {
-      return;
+      if (_mode == AuthMode.register) {
+        // 1. Sign up with Supabase Auth
+        final AuthResponse res = await Supabase.instance.client.auth.signUp(
+          email: email,
+          password: password,
+        );
+
+        if (res.user != null) {
+          // 2. Create record in app_users
+          await Supabase.instance.client.from('app_users').insert({
+            'auth_user_id': res.user!.id,
+            'email': email,
+            'full_name': name,
+            'role': 'customer',
+            'status': 'active',
+          });
+        }
+      } else {
+        // Sign in
+        await Supabase.instance.client.auth.signInWithPassword(
+          email: email,
+          password: password,
+        );
+      }
+
+      final displayName = _mode == AuthMode.register
+          ? name
+          : _displayNameFromEmail(email);
+
+      final message = _mode == AuthMode.login
+          ? 'Welcome back, $displayName'
+          : 'Account created for $displayName';
+
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(message)));
+
+        widget.onAuthenticated(displayName);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Authentication failed: $e')),
+        );
+      }
     }
+  }
 
-    final displayName = _mode == AuthMode.register
-        ? _nameController.text.trim()
-        : _displayNameFromEmail(_emailController.text.trim());
-
-    final message = _mode == AuthMode.login
-        ? 'Welcome back, $displayName'
-        : 'Account created for $displayName';
-
-    setState(() {
-      _isSubmitting = false;
-    });
-
+  void _showResult(String displayName, String message) {
     if (!mounted) {
       return;
     }
@@ -358,6 +400,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
     widget.onAuthenticated(displayName);
   }
+
+
 
   String _displayNameFromEmail(String email) {
     final username = email.split('@').first.trim();
