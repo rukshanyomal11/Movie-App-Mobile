@@ -1252,7 +1252,7 @@ class _BottomNavItem extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut,
@@ -1262,14 +1262,14 @@ class _BottomNavItem extends StatelessWidget {
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(18),
             ),
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(vertical: 6),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
                 Icon(
                   selected ? activeIcon : icon,
                   color: selected ? AppColors.accent : AppColors.textMuted,
-                  size: 26,
+                  size: 24,
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -1280,6 +1280,7 @@ class _BottomNavItem extends StatelessWidget {
                     color: selected ? AppColors.accent : AppColors.textMuted,
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
+                    height: 1,
                   ),
                 ),
               ],
@@ -1482,12 +1483,17 @@ class DetailFactCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
+          Expanded(
+            child: Text(
+              value,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                height: 1.2,
+              ),
             ),
           ),
         ],
