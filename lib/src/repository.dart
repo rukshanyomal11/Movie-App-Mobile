@@ -226,6 +226,7 @@ class MovieRepository {
         final fullTheater = theaterCity.isNotEmpty ? '$theaterName - $theaterCity' : theaterName;
         
         final slot = ShowtimeSlot(
+          id: st['id']?.toString() ?? '',
           date: date,
           timeLabel: formattedTime,
           theater: fullTheater,
@@ -258,6 +259,168 @@ class MovieRepository {
       trailer: trailer,
       schedule: schedule,
     );
+  }
+
+  Future<List<String>> fetchBookedSeats(String showtimeId) async {
+    final response = await Supabase.instance.client
+        .from('booking_seats')
+        .select('seat_label, bookings!inner(showtime_id)')
+        .eq('bookings.showtime_id', showtimeId);
+    
+    if (response is List) {
+      return response.map((row) => row['seat_label'].toString()).toList();
+    }
+    return [];
+  }
+
+  Future<void> createBooking({
+    required String showtimeId,
+    required List<String> seats,
+    required double totalAmount,
+  }) async {
+    final authUser = Supabase.instance.client.auth.currentUser;
+    String? appUserId;
+
+    if (authUser != null) {
+      final res = await Supabase.instance.client
+          .from('app_users')
+          .select('id')
+          .eq('auth_user_id', authUser.id)
+          .maybeSingle();
+      appUserId = res?['id']?.toString();
+    }
+
+    // For demo/simplicity, if no app user exists, we might need to handle it.
+    // In a real app, we'd ensure the app_user record exists.
+    if (appUserId == null) {
+      // Create a dummy user for the booking if none exists (or throw error)
+      // For now, let's try to fetch a default one or fail.
+      final res = await Supabase.instance.client
+          .from('app_users')
+          .select('id')
+          .limit(1)
+          .maybeSingle();
+      appUserId = res?['id']?.toString();
+    }
+
+    if (appUserId == null) throw Exception('No user found to associate with booking');
+
+    final bookingId = 'BK-${DateTime.now().millisecondsSinceEpoch}';
+    
+    // 1. Create the booking
+    final booking = await Supabase.instance.client.from('bookings').insert({
+      'booking_code': bookingId,
+      'user_id': appUserId,
+      'showtime_id': showtimeId,
+      'seats_count': seats.length,
+      'total_amount': totalAmount,
+      'payment_status': 'paid',
+      'booking_status': 'confirmed',
+    }).select().single();
+
+    final realBookingId = booking['id'];
+
+    // 2. Insert the seats
+    final seatInserts = seats.map((seat) => {
+      'booking_id': realBookingId,
+      'seat_label': seat,
+      'seat_price': totalAmount / seats.length, // Rough estimate per seat
+    }).toList();
+
+    await Supabase.instance.client.from('booking_seats').insert(seatInserts);
+  }
+
+  Future<List<BookedTicket>> fetchMyBookings() async {
+    final authUser = Supabase.instance.client.auth.currentUser;
+    if (authUser == null) return [];
+
+    final userRes = await Supabase.instance.client
+        .from('app_users')
+        .select('id')
+        .eq('auth_user_id', authUser.id)
+        .maybeSingle();
+    
+    if (userRes == null) return [];
+    final appUserId = userRes['id'];
+
+    final response = await Supabase.instance.client
+        .from('bookings')
+        .select('''
+          id,
+          booking_code,
+          total_amount,
+          booked_at,
+          booking_status,
+          showtimes (
+            id,
+            show_date,
+            start_time,
+            screens (
+              name
+            ),
+            movies (
+              id,
+              title,
+              poster_url
+            )
+          ),
+          booking_seats (
+            seat_label
+          )
+        ''')
+        .eq('user_id', appUserId)
+        .order('booked_at', ascending: false);
+    
+    if (response is! List) return [];
+
+    final List<BookedTicket> tickets = [];
+    for (final row in response) {
+      if (row is! Map) continue;
+      
+      final st = row['showtimes'];
+      if (st is! Map) continue;
+      
+      final movieRow = st['movies'];
+      if (movieRow is! Map) continue;
+      
+      final screen = st['screens'];
+      final seats = row['booking_seats'] as List? ?? [];
+      final seatLabels = seats.map((s) => s['seat_label'].toString()).join(', ');
+      
+      final timeStr = st['start_time']?.toString() ?? '';
+      String formattedTime = timeStr;
+      if (timeStr.length >= 5) {
+        final parts = timeStr.split(':');
+        if (parts.length >= 2) {
+          int hour = int.tryParse(parts[0]) ?? 0;
+          final min = parts[1];
+          final ampm = hour >= 12 ? 'PM' : 'AM';
+          hour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+          formattedTime = '$hour:$min $ampm';
+        }
+      }
+
+      tickets.add(BookedTicket(
+        movie: Movie(
+          id: int.tryParse(movieRow['id']?.toString() ?? '0') ?? 0,
+          title: movieRow['title']?.toString() ?? 'Unknown',
+          overview: '',
+          posterPath: movieRow['poster_url']?.toString() ?? '',
+          backdropPath: '',
+          rating: 0,
+          genreIds: [],
+          genres: [],
+          releaseDate: '',
+          adult: false,
+        ),
+        bookedAt: DateTime.tryParse(row['booked_at']?.toString() ?? '') ?? DateTime.now(),
+        price: double.tryParse(row['total_amount']?.toString() ?? '0') ?? 0.0,
+        seatLabel: '$formattedTime | ${screen?['name'] ?? 'Screen'} | $seatLabels',
+        cancelled: row['booking_status'] == 'cancelled',
+      ));
+    }
+    
+    return tickets;
   }
 
   Future<Map<int, String>> _fetchGenreMap() async {

@@ -112,6 +112,7 @@ List<ShowtimeDay> buildShowtimeSchedule(Movie movie) {
     final slots = slotTemplates.map((template) {
       final priceBoost = (movie.rating / 10).clamp(0, 1) * 0.5;
       return ShowtimeSlot(
+        id: 'mock-${index}-${template.time}',
         date: date,
         timeLabel: template.time,
         theater: index.isEven ? 'CineBook Downtown' : 'CineBook Westside',
@@ -120,7 +121,7 @@ List<ShowtimeDay> buildShowtimeSchedule(Movie movie) {
         price: double.parse((template.price + priceBoost).toStringAsFixed(2)),
         seatsLeft: template.seats - (index * 2),
       );
-    }).toList();
+    }).toList().cast<ShowtimeSlot>();
 
     return ShowtimeDay(date: date, slots: slots);
   });

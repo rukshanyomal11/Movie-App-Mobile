@@ -161,6 +161,7 @@ class MovieTrailer {
 
 class ShowtimeSlot {
   const ShowtimeSlot({
+    required this.id,
     required this.date,
     required this.timeLabel,
     required this.theater,
@@ -170,6 +171,7 @@ class ShowtimeSlot {
     required this.seatsLeft,
   });
 
+  final String id;
   final DateTime date;
   final String timeLabel;
   final String theater;

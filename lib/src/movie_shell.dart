@@ -85,6 +85,19 @@ class _MovieShellState extends State<MovieShell> {
     });
   }
 
+  Future<void> _fetchTickets() async {
+    if (_repository == null) return;
+    try {
+      final tickets = await _repository!.fetchMyBookings();
+      setState(() {
+        _tickets.clear();
+        _tickets.addAll(tickets);
+      });
+    } catch (e) {
+      // Silently fail or show error
+    }
+  }
+
   void _selectTab(AppTab tab) {
     setState(() {
       _currentTab = tab;
@@ -93,6 +106,10 @@ class _MovieShellState extends State<MovieShell> {
       _selectedMovieBadge = null;
       _selectedShowtime = null;
     });
+    
+    if (tab == AppTab.tickets) {
+      _fetchTickets();
+    }
   }
 
   void _openMovies({
@@ -178,13 +195,15 @@ class _MovieShellState extends State<MovieShell> {
     );
 
     setState(() {
-      _tickets.insert(0, ticket);
+      // _tickets.insert(0, ticket); // We'll re-fetch from DB instead
       _currentTab = AppTab.tickets;
       _selectedMovie = null;
       _selectedMovieDetailFuture = null;
       _selectedMovieBadge = null;
       _selectedShowtime = null;
     });
+
+    _fetchTickets();
 
     if (!mounted) {
       return;
@@ -252,6 +271,7 @@ class _MovieShellState extends State<MovieShell> {
             ? SeatSelectionPage(
                 movie: _selectedMovie!,
                 showtime: _selectedShowtime!,
+                repository: _repository!,
                 onBack: () {
                   setState(() {
                     _selectedShowtime = null;

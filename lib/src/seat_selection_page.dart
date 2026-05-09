@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'models.dart';
+import 'repository.dart';
 import 'theme.dart';
 import 'utils.dart';
 
@@ -9,12 +10,14 @@ class SeatSelectionPage extends StatefulWidget {
     super.key,
     required this.movie,
     required this.showtime,
+    required this.repository,
     required this.onBack,
     required this.onContinue,
   });
 
   final Movie movie;
   final ShowtimeSlot showtime;
+  final MovieRepository repository;
   final VoidCallback onBack;
   final void Function(List<String> seats, double total) onContinue;
 
@@ -23,19 +26,67 @@ class SeatSelectionPage extends StatefulWidget {
 }
 
 class _SeatSelectionPageState extends State<SeatSelectionPage> {
-  final Set<String> _selectedSeats = <String>{'A4', 'B3', 'E4', 'F6'};
-  final Set<String> _bookedSeats = <String>{
-    'C3',
-    'C4',
-    'C5',
-    'C6',
-    'D4',
-    'D5',
-    'D6',
-    'E5',
-    'G6',
-  };
+  final Set<String> _selectedSeats = <String>{};
+  Set<String> _bookedSeats = <String>{};
   final Set<String> _vipRows = <String>{'H', 'I', 'J'};
+  bool _isLoading = true;
+  bool _isBooking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBookedSeats();
+  }
+
+  Future<void> _loadBookedSeats() async {
+    try {
+      final seats = await widget.repository.fetchBookedSeats(widget.showtime.id);
+      if (mounted) {
+        setState(() {
+          _bookedSeats = seats.toSet();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleContinue() async {
+    if (_selectedSeats.isEmpty) return;
+
+    setState(() {
+      _isBooking = true;
+    });
+
+    try {
+      final seats = _selectedSeats.toList()..sort();
+      final total = _total;
+      
+      await widget.repository.createBooking(
+        showtimeId: widget.showtime.id,
+        seats: seats,
+        totalAmount: total,
+      );
+
+      if (mounted) {
+        widget.onContinue(seats, total);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isBooking = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Booking failed: $e')),
+        );
+      }
+    }
+  }
 
   double get _total {
     var total = 0.0;
@@ -136,83 +187,90 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
                 borderRadius: BorderRadius.circular(28),
                 border: Border.all(color: AppColors.stroke),
               ),
-              child: Column(
-                children: <Widget>[
-                  Container(
-                    width: double.infinity,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: <Color>[
-                          Colors.transparent,
-                          AppColors.accent,
-                          Colors.transparent,
-                        ],
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 300,
+                      child: Center(
+                        child: CircularProgressIndicator(color: AppColors.accent),
                       ),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'SCREEN',
-                    style: TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  for (final row in rows)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: <Widget>[
-                          SizedBox(
-                            width: 18,
-                            child: Text(
-                              row,
-                              style: const TextStyle(
-                                color: AppColors.textMuted,
-                                fontWeight: FontWeight.w700,
-                              ),
+                    )
+                  : Column(
+                      children: <Widget>[
+                        Container(
+                          width: double.infinity,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: <Color>[
+                                Colors.transparent,
+                                AppColors.accent,
+                                Colors.transparent,
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'SCREEN',
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        for (final row in rows)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              children: <Widget>[
+                                SizedBox(
+                                  width: 18,
+                                  child: Text(
+                                    row,
+                                    style: const TextStyle(
+                                      color: AppColors.textMuted,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                for (var seat = 1; seat <= 10; seat++) ...<Widget>[
+                                  _SeatTile(
+                                    label: '$seat',
+                                    state: _seatState('$row$seat'),
+                                    onTap: () => _toggleSeat('$row$seat'),
+                                  ),
+                                  if (seat != 10) const SizedBox(width: 6),
+                                ],
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          for (var seat = 1; seat <= 10; seat++) ...<Widget>[
-                            _SeatTile(
-                              label: '$seat',
-                              state: _seatState('$row$seat'),
-                              onTap: () => _toggleSeat('$row$seat'),
+                        const SizedBox(height: 14),
+                        const Row(
+                          children: <Widget>[
+                            _SeatLegend(
+                              label: 'Available',
+                              sample: SeatVisualState.available,
                             ),
-                            if (seat != 10) const SizedBox(width: 6),
+                            SizedBox(width: 14),
+                            _SeatLegend(
+                              label: 'Selected',
+                              sample: SeatVisualState.selected,
+                            ),
+                            SizedBox(width: 14),
+                            _SeatLegend(
+                              label: 'Booked',
+                              sample: SeatVisualState.booked,
+                            ),
+                            SizedBox(width: 14),
+                            _SeatLegend(label: 'VIP', sample: SeatVisualState.vip),
                           ],
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  const SizedBox(height: 14),
-                  const Row(
-                    children: <Widget>[
-                      _SeatLegend(
-                        label: 'Available',
-                        sample: SeatVisualState.available,
-                      ),
-                      SizedBox(width: 14),
-                      _SeatLegend(
-                        label: 'Selected',
-                        sample: SeatVisualState.selected,
-                      ),
-                      SizedBox(width: 14),
-                      _SeatLegend(
-                        label: 'Booked',
-                        sample: SeatVisualState.booked,
-                      ),
-                      SizedBox(width: 14),
-                      _SeatLegend(label: 'VIP', sample: SeatVisualState.vip),
-                    ],
-                  ),
-                ],
-              ),
             ),
             const SizedBox(height: 18),
             Container(
@@ -298,15 +356,23 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
-                      onPressed: _selectedSeats.isEmpty
+                      onPressed: (_selectedSeats.isEmpty || _isBooking || _isLoading)
                           ? null
-                          : () => widget.onContinue(
-                                _selectedSeats.toList()..sort(),
-                                _total,
+                          : _handleContinue,
+                      icon: _isBooking
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
                               ),
-                      icon: const Icon(Icons.confirmation_num_outlined),
+                            )
+                          : const Icon(Icons.confirmation_num_outlined),
                       label: Text(
-                        'Continue | \$${_total.toStringAsFixed(2)}',
+                        _isBooking
+                            ? 'Processing...'
+                            : 'Continue | \$${_total.toStringAsFixed(2)}',
                       ),
                     ),
                   ),
