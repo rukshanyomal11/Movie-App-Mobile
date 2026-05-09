@@ -290,20 +290,7 @@ class MovieRepository {
       appUserId = res?['id']?.toString();
     }
 
-    // For demo/simplicity, if no app user exists, we might need to handle it.
-    // In a real app, we'd ensure the app_user record exists.
-    if (appUserId == null) {
-      // Create a dummy user for the booking if none exists (or throw error)
-      // For now, let's try to fetch a default one or fail.
-      final res = await Supabase.instance.client
-          .from('app_users')
-          .select('id')
-          .limit(1)
-          .maybeSingle();
-      appUserId = res?['id']?.toString();
-    }
-
-    if (appUserId == null) throw Exception('No user found to associate with booking');
+    if (appUserId == null) throw Exception('You must be logged in to book tickets.');
 
     final bookingId = 'BK-${DateTime.now().millisecondsSinceEpoch}';
     

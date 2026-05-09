@@ -278,6 +278,8 @@ class _MovieShellState extends State<MovieShell> {
                   });
                 },
                 onContinue: _confirmSeatBooking,
+                isGuest: widget.displayName == 'Guest',
+                onLoginRequired: widget.onLogout,
               )
             : _selectedMovie != null && _selectedMovieDetailFuture != null
                 ? MovieDetailsPage(

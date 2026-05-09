@@ -13,6 +13,8 @@ class SeatSelectionPage extends StatefulWidget {
     required this.repository,
     required this.onBack,
     required this.onContinue,
+    required this.onLoginRequired,
+    this.isGuest = false,
   });
 
   final Movie movie;
@@ -20,6 +22,8 @@ class SeatSelectionPage extends StatefulWidget {
   final MovieRepository repository;
   final VoidCallback onBack;
   final void Function(List<String> seats, double total) onContinue;
+  final VoidCallback onLoginRequired;
+  final bool isGuest;
 
   @override
   State<SeatSelectionPage> createState() => _SeatSelectionPageState();
@@ -58,6 +62,11 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
 
   Future<void> _handleContinue() async {
     if (_selectedSeats.isEmpty) return;
+
+    if (widget.isGuest) {
+      widget.onLoginRequired();
+      return;
+    }
 
     setState(() {
       _isBooking = true;
