@@ -222,7 +222,8 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
                         ),
                         const SizedBox(height: 18),
                         for (final row in rows)
-                          Padding(
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
                             padding: const EdgeInsets.only(bottom: 8),
                             child: Row(
                               children: <Widget>[
@@ -249,23 +250,22 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
                             ),
                           ),
                         const SizedBox(height: 14),
-                        const Row(
+                        const Wrap(
+                          spacing: 14,
+                          runSpacing: 10,
                           children: <Widget>[
                             _SeatLegend(
                               label: 'Available',
                               sample: SeatVisualState.available,
                             ),
-                            SizedBox(width: 14),
                             _SeatLegend(
                               label: 'Selected',
                               sample: SeatVisualState.selected,
                             ),
-                            SizedBox(width: 14),
                             _SeatLegend(
                               label: 'Booked',
                               sample: SeatVisualState.booked,
                             ),
-                            SizedBox(width: 14),
                             _SeatLegend(label: 'VIP', sample: SeatVisualState.vip),
                           ],
                         ),
