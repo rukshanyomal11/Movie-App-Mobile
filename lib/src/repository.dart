@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'models.dart';
 
@@ -17,17 +18,61 @@ class MovieRepository {
 
   Future<HomeFeed> fetchHomeFeed() async {
     final genres = await _fetchGenreMap();
-    final results =
-        await Future.wait<Map<String, dynamic>>(<Future<Map<String, dynamic>>>[
-      _getJson('/movie/now_playing'),
-      _getJson('/movie/upcoming'),
-      _getJson('/movie/top_rated'),
+
+    // 1. Fetch movies added by the Admin in Supabase
+    final response = await Supabase.instance.client
+        .from('movies')
+        .select('tmdb_id, status')
+        .not('tmdb_id', 'is', null);
+
+    // Ensure it's treated as a list, even if Supabase returns null or dynamic
+    final List<dynamic> sbMovies = (response as List<dynamic>?) ?? <dynamic>[];
+
+    // 2. Separate into Now Playing (now_showing, featured) and Upcoming
+    final nowShowingIds = <int>[];
+    final upcomingIds = <int>[];
+    
+    for (final row in sbMovies) {
+      if (row == null || row is! Map) continue;
+      
+      final id = row['tmdb_id'];
+      final status = row['status'];
+      
+      if (id == null || id is! num) continue;
+      
+      final statusStr = status?.toString();
+      if (statusStr == 'now_showing' || statusStr == 'featured') {
+        nowShowingIds.add(id.toInt());
+      } else if (statusStr == 'upcoming') {
+        upcomingIds.add(id.toInt());
+      }
+    }
+
+    // 3. Helper to fetch TMDB details for a list of IDs
+    Future<List<Movie>> fetchMoviesByIds(List<int> ids) async {
+      if (ids.isEmpty) return <Movie>[];
+      final futures = ids.map((id) => _getJson('/movie/$id').catchError((_) => <String, dynamic>{}));
+      final jsons = await Future.wait(futures);
+      final validJsons = jsons.where((j) => j.isNotEmpty).toList();
+      return _parseMoviesList(validJsons, genres);
+    }
+
+    // 4. Fetch the real TMDB data for these specific movies in parallel
+    final results = await Future.wait([
+      fetchMoviesByIds(nowShowingIds),
+      fetchMoviesByIds(upcomingIds),
+      _getJson('/movie/top_rated'), // Keep top rated as generic TMDB feed
     ]);
 
+    // Safely extract results without dangerous forced casts
+    final List<Movie> nowPlayingData = (results[0] is List) ? List<Movie>.from(results[0] as List) : <Movie>[];
+    final List<Movie> upcomingData = (results[1] is List) ? List<Movie>.from(results[1] as List) : <Movie>[];
+    final Map<String, dynamic> topRatedData = (results[2] is Map<String, dynamic>) ? results[2] as Map<String, dynamic> : <String, dynamic>{};
+
     return HomeFeed(
-      nowPlaying: _parseMovies(results[0], genres),
-      upcoming: _parseMovies(results[1], genres),
-      topRated: _parseMovies(results[2], genres),
+      nowPlaying: nowPlayingData,
+      upcoming: upcomingData,
+      topRated: _parseMovies(topRatedData, genres),
     );
   }
 
@@ -160,6 +205,19 @@ class MovieRepository {
       }
     }
 
+    return movies;
+  }
+
+  List<Movie> _parseMoviesList(
+    List<dynamic> list,
+    Map<int, String> genreLookup,
+  ) {
+    final movies = <Movie>[];
+    for (final item in list) {
+      if (item is Map<String, dynamic>) {
+        movies.add(_movieFromJson(item, genreLookup));
+      }
+    }
     return movies;
   }
 

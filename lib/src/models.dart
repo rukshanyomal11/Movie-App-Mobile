@@ -95,11 +95,12 @@ class HomeFeed {
 
   String badgeFor(Movie movie) => isUpcoming(movie) ? 'SOON' : 'NOW';
 
-  static List<Movie> _mergeUnique(List<List<Movie>> groups) {
+  static List<Movie> _mergeUnique(List<List<Movie>?> groups) {
     final seen = <int>{};
     final items = <Movie>[];
 
     for (final group in groups) {
+      if (group == null) continue;
       for (final movie in group) {
         if (seen.add(movie.id)) {
           items.add(movie);
