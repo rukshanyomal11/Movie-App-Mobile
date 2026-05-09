@@ -61,7 +61,7 @@ class MovieRepository {
     final results = await Future.wait([
       fetchMoviesByIds(nowShowingIds),
       fetchMoviesByIds(upcomingIds),
-      _getJson('/movie/top_rated'), // Keep top rated as generic TMDB feed
+      _getJson('/movie/top_rated'), // Restored Top Rated public TMDB feed
     ]);
 
     // Safely extract results without dangerous forced casts

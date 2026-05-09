@@ -125,7 +125,6 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Future<void> _searchByGenre(GenreOption genre) async {
-    final token = ++_requestToken;
     _debounce?.cancel();
     _savedQuery = _controller.text;
     _savedResults = List<Movie>.from(_results);
@@ -133,34 +132,17 @@ class _SearchPageState extends State<SearchPage> {
     _savedResultLabel = _resultLabel;
     _controller.clear();
 
+    final localMatches = widget.catalog
+        .where((m) => m.genreIds.contains(genre.id))
+        .toList();
+
     setState(() {
       _selectedGenreId = genre.id;
-      _isLoading = true;
+      _isLoading = false;
       _errorMessage = null;
       _resultLabel = '${genre.label} picks';
-      _results = const <Movie>[];
+      _results = localMatches;
     });
-
-    try {
-      final results = await widget.repository.discoverMoviesByGenre(genre.id);
-      if (!mounted || token != _requestToken) {
-        return;
-      }
-
-      setState(() {
-        _isLoading = false;
-        _results = _mergeMovies(const <Movie>[], results);
-      });
-    } catch (error) {
-      if (!mounted || token != _requestToken) {
-        return;
-      }
-
-      setState(() {
-        _isLoading = false;
-        _errorMessage = error.toString();
-      });
-    }
   }
 
   void _clearGenreSelection() {

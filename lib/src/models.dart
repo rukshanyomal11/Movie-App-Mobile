@@ -85,8 +85,9 @@ class HomeFeed {
 
   List<Movie> get featured => nowPlaying.take(5).toList();
 
+  // Exclude topRated so Search and Movies pages only show the database catalog
   List<Movie> get allMovies =>
-      _mergeUnique(<List<Movie>>[nowPlaying, upcoming, topRated]);
+      _mergeUnique(<List<Movie>?>[nowPlaying, upcoming]);
 
   bool isUpcoming(Movie movie) => upcoming.any((item) => item.id == movie.id);
 
