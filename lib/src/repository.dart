@@ -119,6 +119,7 @@ class MovieRepository {
               id,
               show_date,
               start_time,
+              status,
               ticket_price,
               seats_available,
               screens (
@@ -190,6 +191,8 @@ class MovieRepository {
     final List<ShowtimeDay> schedule = [];
     if (sbMoviesList != null) {
       final Map<String, List<ShowtimeSlot>> grouped = {};
+      final today = DateTime.now();
+      final todayDate = DateTime(today.year, today.month, today.day);
       
       for (final movieRow in sbMoviesList) {
         if (movieRow is! Map || movieRow['showtimes'] is! List) continue;
@@ -200,10 +203,14 @@ class MovieRepository {
         
         final dateStr = st['show_date']?.toString() ?? '';
         final timeStr = st['start_time']?.toString() ?? '';
+        final statusStr = st['status']?.toString() ?? 'scheduled';
         if (dateStr.isEmpty) continue;
+        if (statusStr == 'cancelled') continue;
         
         final date = DateTime.tryParse(dateStr);
         if (date == null) continue;
+        final showDate = DateTime(date.year, date.month, date.day);
+        if (showDate.isBefore(todayDate)) continue;
         
         final screen = st['screens'];
         final theater = screen is Map ? screen['theaters'] : null;
@@ -227,7 +234,7 @@ class MovieRepository {
         
         final slot = ShowtimeSlot(
           id: st['id']?.toString() ?? '',
-          date: date,
+          date: showDate,
           timeLabel: formattedTime,
           theater: fullTheater,
           hall: screen is Map ? screen['name']?.toString() ?? 'Screen' : 'Screen',

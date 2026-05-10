@@ -73,6 +73,43 @@ String formatShowtimeHeader(DateTime value) {
   return '${formatWeekdayShort(value)}, ${formatMonthDay(value)}';
 }
 
+DateTime normalizeDate(DateTime value) {
+  return DateTime(value.year, value.month, value.day);
+}
+
+bool isSameCalendarDay(DateTime a, DateTime b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+String formatShowtimeDayLabel(DateTime value, {DateTime? today}) {
+  final referenceDay = normalizeDate(today ?? DateTime.now());
+  return isSameCalendarDay(normalizeDate(value), referenceDay)
+      ? 'Today'
+      : formatWeekdayShort(value);
+}
+
+int findDefaultShowtimeDayIndex(
+  List<ShowtimeDay> schedule, {
+  DateTime? today,
+}) {
+  if (schedule.isEmpty) {
+    return 0;
+  }
+
+  final referenceDay = normalizeDate(today ?? DateTime.now());
+  var closestPastIndex = 0;
+
+  for (var index = 0; index < schedule.length; index++) {
+    final day = normalizeDate(schedule[index].date);
+    if (!day.isBefore(referenceDay)) {
+      return index;
+    }
+    closestPastIndex = index;
+  }
+
+  return closestPastIndex;
+}
+
 List<ShowtimeDay> buildShowtimeSchedule(Movie movie) {
   final now = DateTime.now();
   final baseDate = DateTime(now.year, now.month, now.day);

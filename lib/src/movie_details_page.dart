@@ -34,6 +34,17 @@ class MovieDetailsPage extends StatefulWidget {
 class _MovieDetailsPageState extends State<MovieDetailsPage> {
   MovieDetailsTab _selectedTab = MovieDetailsTab.about;
   int _selectedDayIndex = 0;
+  bool _hasSelectedDayManually = false;
+
+  @override
+  void didUpdateWidget(covariant MovieDetailsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.movie.id != widget.movie.id) {
+      _selectedTab = MovieDetailsTab.about;
+      _selectedDayIndex = 0;
+      _hasSelectedDayManually = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +70,9 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
           final schedule = detail?.schedule ?? const [];
           final safeDayIndex = schedule.isEmpty
               ? 0
-              : _selectedDayIndex.clamp(0, schedule.length - 1) as int;
+              : (_hasSelectedDayManually
+                    ? _selectedDayIndex.clamp(0, schedule.length - 1) as int
+                    : findDefaultShowtimeDayIndex(schedule));
 
           return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(18, 0, 18, 28),
@@ -251,6 +264,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
                     onDaySelected: (index) {
                       setState(() {
                         _selectedDayIndex = index;
+                        _hasSelectedDayManually = true;
                       });
                     },
                     onSelectShowtime: widget.onSelectShowtime,
@@ -668,7 +682,7 @@ class _ShowtimesTab extends StatelessWidget {
             itemBuilder: (context, index) {
               final day = schedule[index];
               return _ShowtimeDayChip(
-                label: index == 0 ? 'Today' : formatWeekdayShort(day.date),
+                label: formatShowtimeDayLabel(day.date),
                 dayNumber: '${day.date.day}',
                 selected: index == selectedDayIndex,
                 onTap: () => onDaySelected(index),
@@ -680,6 +694,14 @@ class _ShowtimesTab extends StatelessWidget {
         Text(
           'Available showtimes',
           style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          formatShowtimeHeader(selectedDay.date),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textMuted,
+                fontWeight: FontWeight.w600,
+              ),
         ),
         const SizedBox(height: 18),
         for (final slot in selectedDay.slots)
