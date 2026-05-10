@@ -331,20 +331,28 @@ class _AuthScreenState extends State<AuthScreen> {
 
       if (_mode == AuthMode.register) {
         // 1. Sign up with Supabase Auth
+        // We pass the full_name into the user metadata so a database trigger
+        // can safely create the app_users record without causing 401 Unauthorized errors.
         final AuthResponse res = await Supabase.instance.client.auth.signUp(
           email: email,
           password: password,
+          data: {
+            'full_name': name,
+          },
         );
 
-        if (res.user != null) {
-          // 2. Create record in app_users
-          await Supabase.instance.client.from('app_users').insert({
-            'auth_user_id': res.user!.id,
-            'email': email,
-            'full_name': name,
-            'role': 'customer',
-            'status': 'active',
-          });
+        if (res.session == null && res.user != null) {
+          // Email confirmation is required
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Registration successful! Please check your email to confirm your account.')),
+            );
+            setState(() {
+              _mode = AuthMode.login;
+              _isSubmitting = false;
+            });
+          }
+          return;
         }
       } else {
         // Sign in
