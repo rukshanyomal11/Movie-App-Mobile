@@ -68,6 +68,7 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   bool _isSubmitting = false;
+  String? _authError;
 
   @override
   void dispose() {
@@ -137,6 +138,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                   onChanged: (mode) {
                                     setState(() {
                                       _mode = mode;
+                                      _authError = null;
                                     });
                                   },
                                 ),
@@ -279,6 +281,10 @@ class _AuthScreenState extends State<AuthScreen> {
                                             ),
                                           ),
                                         ),
+                                        if (_authError != null) ...<Widget>[
+                                          const SizedBox(height: 14),
+                                          _AuthFeedbackCard(message: _authError!),
+                                        ],
                                         const SizedBox(height: 12),
                                         SizedBox(
                                           width: double.infinity,
@@ -324,11 +330,15 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
 
-    try {
-      final email = _emailController.text.trim();
-      final password = _passwordController.text.trim();
-      final name = _nameController.text.trim();
+    setState(() {
+      _isSubmitting = true;
+      _authError = null;
+    });
 
+    final email = _emailController.text.trim().toLowerCase();
+    final password = _passwordController.text.trim();
+    final name = _nameController.text.trim();
+    try {
       if (_mode == AuthMode.register) {
         // 1. Sign up with Supabase Auth
         // We pass the full_name into the user metadata so a database trigger
@@ -344,12 +354,13 @@ class _AuthScreenState extends State<AuthScreen> {
         if (res.session == null && res.user != null) {
           // Email confirmation is required
           if (mounted) {
+            _passwordController.clear();
+            _confirmController.clear();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Registration successful! Please check your email to confirm your account.')),
             );
             setState(() {
               _mode = AuthMode.login;
-              _isSubmitting = false;
             });
           }
           return;
@@ -371,45 +382,69 @@ class _AuthScreenState extends State<AuthScreen> {
           : 'Account created for $displayName';
 
       if (mounted) {
-        setState(() {
-          _isSubmitting = false;
-        });
-
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(SnackBar(content: Text(message)));
 
         widget.onAuthenticated(displayName);
       }
-    } catch (e) {
+    } on AuthException catch (error) {
+      _setAuthError(
+        _friendlyAuthMessage(
+          error.message,
+          mode: _mode,
+        ),
+      );
+    } catch (_) {
+      _setAuthError('Authentication failed. Please try again.');
+    } finally {
       if (mounted) {
         setState(() {
           _isSubmitting = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Authentication failed: $e')),
-        );
       }
     }
   }
 
-  void _showResult(String displayName, String message) {
+
+
+  String _friendlyAuthMessage(
+    String message, {
+    required AuthMode mode,
+  }) {
+    final normalizedMessage = message.toLowerCase();
+
+    if (mode == AuthMode.register) {
+      if (normalizedMessage.contains('already registered') ||
+          normalizedMessage.contains('already exists') ||
+          normalizedMessage.contains('user already')) {
+        return 'This email already exists. Try another email.';
+      }
+      if (normalizedMessage.contains('password')) {
+        return 'Password must be at least 6 characters.';
+      }
+    } else {
+      if (normalizedMessage.contains('invalid login credentials') ||
+          normalizedMessage.contains('invalid credentials')) {
+        return 'Wrong email or password. Try again.';
+      }
+      if (normalizedMessage.contains('email not confirmed')) {
+        return 'Please confirm your email before logging in.';
+      }
+    }
+
+    return message;
+  }
+
+  void _setAuthError(String message) {
     if (!mounted) {
       return;
     }
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
-
-    widget.onAuthenticated(displayName);
+    setState(() {
+      _authError = message;
+    });
   }
-
-
 
   String _displayNameFromEmail(String email) {
     final username = email.split('@').first.trim();
@@ -418,6 +453,36 @@ class _AuthScreenState extends State<AuthScreen> {
     }
 
     return username[0].toUpperCase() + username.substring(1);
+  }
+}
+
+class _AuthFeedbackCard extends StatelessWidget {
+  const _AuthFeedbackCard({
+    required this.message,
+  });
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.accent.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.danger),
+      ),
+      child: Text(
+        message,
+        style: const TextStyle(
+          color: AppColors.danger,
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          height: 1.4,
+        ),
+      ),
+    );
   }
 }
 
