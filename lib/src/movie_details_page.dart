@@ -491,6 +491,7 @@ class _InlineTrailerCardState extends State<_InlineTrailerCard> {
         showControls: true,
         showFullscreenButton: false,
         strictRelatedVideos: true,
+        origin: 'https://www.youtube.com',
       ),
     );
   }
