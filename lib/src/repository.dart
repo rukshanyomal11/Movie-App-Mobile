@@ -19,34 +19,41 @@ class MovieRepository {
   Future<HomeFeed> fetchHomeFeed() async {
     final genres = await _fetchGenreMap();
 
-    // 1. Fetch movies added by the Admin in Supabase
-    final response = await Supabase.instance.client
-        .from('movies')
-        .select('tmdb_id, status')
-        .not('tmdb_id', 'is', null);
+    // 1. Fetch ALL showtimes to determine which movies are active
+    final stResponse = await Supabase.instance.client
+        .from('showtimes')
+        .select('''
+          show_date,
+          movie:movies (
+            tmdb_id
+          )
+        ''');
 
-    // Ensure it's treated as a list, even if Supabase returns null or dynamic
-    final List<dynamic> sbMovies = (response as List<dynamic>?) ?? <dynamic>[];
+    final List<dynamic> showtimes = (stResponse as List<dynamic>?) ?? <dynamic>[];
+    final today = DateTime.now();
+    final todayDateStr = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
 
-    // 2. Separate into Now Playing (now_showing, featured) and Upcoming (using Set to deduplicate)
     final nowShowingIds = <int>{};
     final upcomingIds = <int>{};
     
-    for (final row in sbMovies) {
-      if (row == null || row is! Map) continue;
+    for (final st in showtimes) {
+      if (st == null || st is! Map) continue;
+      final movie = st['movie'] as Map?;
+      if (movie == null) continue;
       
-      final id = row['tmdb_id'];
-      final status = row['status'];
+      final tmdbId = movie['tmdb_id'] as int?;
+      if (tmdbId == null) continue;
       
-      if (id == null || id is! num) continue;
-      
-      final statusStr = status?.toString();
-      if (statusStr == 'now_showing' || statusStr == 'featured') {
-        nowShowingIds.add(id.toInt());
-      } else if (statusStr == 'upcoming') {
-        upcomingIds.add(id.toInt());
+      final showDateStr = st['show_date']?.toString();
+      if (showDateStr == todayDateStr) {
+        nowShowingIds.add(tmdbId);
+      } else if (showDateStr != null && showDateStr.compareTo(todayDateStr) > 0) {
+        upcomingIds.add(tmdbId);
       }
     }
+    
+    // Deduplicate: If a movie is today, it's not "upcoming"
+    upcomingIds.removeAll(nowShowingIds);
 
     // 3. Helper to fetch TMDB details for a list of IDs
     Future<List<Movie>> fetchMoviesByIds(Set<int> ids) async {
