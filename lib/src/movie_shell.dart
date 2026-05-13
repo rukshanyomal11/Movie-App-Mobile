@@ -34,6 +34,7 @@ class _MovieShellState extends State<MovieShell> {
   Movie? _selectedMovie;
   Future<MovieDetail>? _selectedMovieDetailFuture;
   String? _selectedMovieBadge;
+  MovieDetailsTab _selectedMovieTab = MovieDetailsTab.about;
   ShowtimeSlot? _selectedShowtime;
 
   MovieRepository? _repository;
@@ -128,47 +129,10 @@ class _MovieShellState extends State<MovieShell> {
   }
 
   void _bookMovie(Movie movie) {
-    final order = _tickets.length + 1;
-    final ticket = BookedTicket(
-      movie: movie,
-      bookedAt: DateTime.now().add(Duration(days: order.isEven ? 1 : 0)),
-      price: (10 + movie.rating).clamp(12, 24).toDouble(),
-      seatLabel: buildSeatLabel(movie, order),
-    );
-
-    setState(() {
-      _tickets.insert(0, ticket);
-    });
-
-    if (!mounted) {
-      return;
-    }
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text('${movie.title} added to My Tickets'),
-          action: SnackBarAction(
-            label: 'View',
-            onPressed: () {
-              if (!mounted) {
-                return;
-              }
-              setState(() {
-                _currentTab = AppTab.tickets;
-                _selectedMovie = null;
-                _selectedMovieDetailFuture = null;
-                _selectedMovieBadge = null;
-                _selectedShowtime = null;
-              });
-            },
-          ),
-        ),
-      );
+    _showMovieDetails(movie, initialTab: MovieDetailsTab.showtimes);
   }
 
-  void _showMovieDetails(Movie movie, {String? badge}) {
+  void _showMovieDetails(Movie movie, {String? badge, MovieDetailsTab initialTab = MovieDetailsTab.about}) {
     if (_repository == null) {
       return;
     }
@@ -176,6 +140,7 @@ class _MovieShellState extends State<MovieShell> {
     setState(() {
       _selectedMovie = movie;
       _selectedMovieBadge = badge;
+      _selectedMovieTab = initialTab;
       _selectedMovieDetailFuture = _repository!.fetchMovieDetail(movie.id);
       _selectedShowtime = null;
     });
@@ -286,6 +251,7 @@ class _MovieShellState extends State<MovieShell> {
                     movie: _selectedMovie!,
                     detailFuture: _selectedMovieDetailFuture!,
                     badge: _selectedMovieBadge,
+                    initialTab: _selectedMovieTab,
                     onBack: () {
                       setState(() {
                         _selectedMovie = null;

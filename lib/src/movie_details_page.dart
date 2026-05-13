@@ -18,6 +18,7 @@ class MovieDetailsPage extends StatefulWidget {
     required this.onBook,
     required this.onSelectShowtime,
     this.badge,
+    this.initialTab = MovieDetailsTab.about,
   });
 
   final Movie movie;
@@ -26,21 +27,28 @@ class MovieDetailsPage extends StatefulWidget {
   final ValueChanged<Movie> onBook;
   final ValueChanged<ShowtimeSlot> onSelectShowtime;
   final String? badge;
+  final MovieDetailsTab initialTab;
 
   @override
   State<MovieDetailsPage> createState() => _MovieDetailsPageState();
 }
 
 class _MovieDetailsPageState extends State<MovieDetailsPage> {
-  MovieDetailsTab _selectedTab = MovieDetailsTab.about;
+  late MovieDetailsTab _selectedTab;
   int _selectedDayIndex = 0;
   bool _hasSelectedDayManually = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedTab = widget.initialTab;
+  }
 
   @override
   void didUpdateWidget(covariant MovieDetailsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.movie.id != widget.movie.id) {
-      _selectedTab = MovieDetailsTab.about;
+      _selectedTab = widget.initialTab;
       _selectedDayIndex = 0;
       _hasSelectedDayManually = false;
     }
@@ -207,7 +215,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
                   ],
                 ),
                 const SizedBox(height: 96),
-                if (isNowPlaying) ...[
+                if (schedule.isNotEmpty) ...[
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
@@ -249,7 +257,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
                     padding: const EdgeInsets.only(bottom: 18),
                     child: ErrorInlineCard(message: snapshot.error.toString()),
                   ),
-                if (!isNowPlaying || _selectedTab == MovieDetailsTab.about)
+                if (schedule.isEmpty || _selectedTab == MovieDetailsTab.about)
                   _AboutTab(
                     movie: movie,
                     director: director,
@@ -269,7 +277,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
                     },
                     onSelectShowtime: widget.onSelectShowtime,
                   ),
-                if (isNowPlaying && _selectedTab == MovieDetailsTab.about) ...<Widget>[
+                if (schedule.isNotEmpty && _selectedTab == MovieDetailsTab.about) ...<Widget>[
                   const SizedBox(height: 22),
                   SizedBox(
                     width: double.infinity,
