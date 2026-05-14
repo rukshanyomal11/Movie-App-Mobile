@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'models.dart';
 import 'repository.dart';
+import 'stripe_service.dart';
 import 'theme.dart';
 import 'utils.dart';
 
@@ -75,7 +76,28 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
     try {
       final seats = _selectedSeats.toList()..sort();
       final total = _total;
-      
+
+      final paymentSuccess = await StripeService.makePayment(
+        amount: total,
+        currency: 'USD',
+      );
+
+      if (!paymentSuccess) {
+        if (mounted) {
+          setState(() {
+            _isBooking = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Payment could not be completed. Check your Stripe backend configuration.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
       await widget.repository.createBooking(
         showtimeId: widget.showtime.id,
         seats: seats,
