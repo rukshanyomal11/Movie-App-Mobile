@@ -115,6 +115,7 @@ class HomeFeed {
 
 class BookedTicket {
   const BookedTicket({
+    required this.id,
     required this.movie,
     required this.bookedAt,
     required this.price,
@@ -122,6 +123,7 @@ class BookedTicket {
     this.cancelled = false,
   });
 
+  final String id;
   final Movie movie;
   final DateTime bookedAt;
   final double price;

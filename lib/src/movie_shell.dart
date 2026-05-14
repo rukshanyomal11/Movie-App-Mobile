@@ -153,6 +153,7 @@ class _MovieShellState extends State<MovieShell> {
 
     final slot = _selectedShowtime!;
     final ticket = BookedTicket(
+      id: 'TEMP-${DateTime.now().millisecondsSinceEpoch}',
       movie: _selectedMovie!,
       bookedAt: slot.date,
       price: total,

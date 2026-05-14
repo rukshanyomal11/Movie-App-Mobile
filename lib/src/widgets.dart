@@ -1079,91 +1079,342 @@ class TicketCard extends StatelessWidget {
 
   final BookedTicket ticket;
 
+  void _showTicketDetails(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _TicketDetailsModal(ticket: ticket),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.stroke),
-      ),
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        children: <Widget>[
-          ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: SizedBox(
-              width: 78,
-              height: 110,
-              child: NetworkArtwork(imageUrl: ticket.movie.posterUrl, fit: BoxFit.cover),
+    return GestureDetector(
+      onTap: () => _showTicketDetails(context),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.stroke),
+        ),
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: <Widget>[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: SizedBox(
+                width: 78,
+                height: 110,
+                child: NetworkArtwork(
+                  imageUrl: ticket.movie.posterUrl,
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  ticket.movie.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  ticket.seatLabel,
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: <Widget>[
-                    const Icon(
-                      Icons.calendar_today_rounded,
-                      color: AppColors.accent,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      formatDate(ticket.bookedAt),
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    '\$${ticket.price.toStringAsFixed(2)}',
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    ticket.movie.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: AppColors.gold,
+                      color: AppColors.textPrimary,
+                      fontSize: 17,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 6),
+                  Text(
+                    ticket.seatLabel,
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: <Widget>[
+                      const Icon(
+                        Icons.calendar_today_rounded,
+                        color: AppColors.accent,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        formatDate(ticket.bookedAt),
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '\$${ticket.price.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            color: AppColors.gold,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const Text(
+                        'View Detail →',
+                        style: TextStyle(
+                          color: AppColors.accent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
+    );
+  }
+}
+
+class _TicketDetailsModal extends StatelessWidget {
+  const _TicketDetailsModal({required this.ticket});
+
+  final BookedTicket ticket;
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (_, controller) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(36)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: ListView(
+                controller: controller,
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                children: [
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text(
+                        'E-TICKET',
+                        style: TextStyle(
+                          color: AppColors.accent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(28),
+                    child: Stack(
+                      children: [
+                        AspectRatio(
+                          aspectRatio: 16 / 9,
+                          child: NetworkArtwork(
+                            imageUrl: ticket.movie.posterUrl,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Positioned.fill(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withOpacity(0.8),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          left: 20,
+                          bottom: 20,
+                          right: 20,
+                          child: Text(
+                            ticket.movie.title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  _buildDetailRow(
+                    Icons.location_on_rounded,
+                    'Cinema Hall',
+                    'Main Hall — Screen 01',
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDetailRow(
+                          Icons.calendar_month_rounded,
+                          'Date',
+                          'May 14, 2026',
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildDetailRow(
+                          Icons.access_time_filled_rounded,
+                          'Time',
+                          '08:30 PM',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDetailRow(
+                          Icons.event_seat_rounded,
+                          'Seats',
+                          ticket.seatLabel,
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildDetailRow(
+                          Icons.payments_rounded,
+                          'Total Paid',
+                          '\$${ticket.price.toStringAsFixed(2)}',
+                          valueColor: AppColors.gold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 40),
+                  Divider(color: Colors.white.withOpacity(0.1)),
+                  const SizedBox(height: 32),
+                  Center(
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Icon(
+                            Icons.qr_code_2_rounded,
+                            size: 160,
+                            color: Colors.black,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'TICKET ID: B-${ticket.id.substring(0, 8).toUpperCase()}',
+                          style: const TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 48),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value,
+      {Color? valueColor}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: AppColors.accent, size: 20),
+        ),
+        const SizedBox(width: 14),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: TextStyle(
+                color: valueColor ?? AppColors.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

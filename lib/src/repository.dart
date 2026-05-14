@@ -402,6 +402,7 @@ class MovieRepository {
       }
 
       tickets.add(BookedTicket(
+        id: row['id']?.toString() ?? '',
         movie: Movie(
           id: int.tryParse(movieRow['id']?.toString() ?? '0') ?? 0,
           title: movieRow['title']?.toString() ?? 'Unknown',
