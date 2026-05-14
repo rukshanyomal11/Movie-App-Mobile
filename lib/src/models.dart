@@ -118,17 +118,25 @@ class BookedTicket {
     required this.id,
     required this.movie,
     required this.bookedAt,
+    required this.showDate,
+    required this.showTime,
+    required this.hallName,
+    required this.seats,
     required this.price,
-    required this.seatLabel,
     this.cancelled = false,
   });
 
   final String id;
   final Movie movie;
   final DateTime bookedAt;
+  final DateTime showDate;
+  final String showTime;
+  final String hallName;
+  final List<String> seats;
   final double price;
-  final String seatLabel;
   final bool cancelled;
+
+  String get seatLabel => seats.join(', ');
 }
 
 class MovieDetail {

@@ -1299,7 +1299,7 @@ class _TicketDetailsModal extends StatelessWidget {
                   _buildDetailRow(
                     Icons.location_on_rounded,
                     'Cinema Hall',
-                    'Main Hall — Screen 01',
+                    ticket.hallName,
                   ),
                   const SizedBox(height: 24),
                   Row(
@@ -1308,14 +1308,14 @@ class _TicketDetailsModal extends StatelessWidget {
                         child: _buildDetailRow(
                           Icons.calendar_month_rounded,
                           'Date',
-                          'May 14, 2026',
+                          formatDate(ticket.showDate),
                         ),
                       ),
                       Expanded(
                         child: _buildDetailRow(
                           Icons.access_time_filled_rounded,
                           'Time',
-                          '08:30 PM',
+                          ticket.showTime,
                         ),
                       ),
                     ],
@@ -1398,27 +1398,31 @@ class _TicketDetailsModal extends StatelessWidget {
           child: Icon(icon, color: AppColors.accent, size: 20),
         ),
         const SizedBox(width: 14),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: TextStyle(
-                color: valueColor ?? AppColors.textPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
+              const SizedBox(height: 4),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: valueColor ?? AppColors.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );

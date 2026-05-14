@@ -386,8 +386,9 @@ class MovieRepository {
       
       final screen = st['screens'];
       final seats = row['booking_seats'] as List? ?? [];
-      final seatLabels = seats.map((s) => s['seat_label'].toString()).join(', ');
-      
+      final seatsList = seats.map((s) => s['seat_label'].toString()).toList();
+      final showDate = DateTime.tryParse(st['show_date']?.toString() ?? '') ?? DateTime.now();
+
       final timeStr = st['start_time']?.toString() ?? '';
       String formattedTime = timeStr;
       if (timeStr.length >= 5) {
@@ -416,8 +417,11 @@ class MovieRepository {
           adult: false,
         ),
         bookedAt: DateTime.tryParse(row['booked_at']?.toString() ?? '') ?? DateTime.now(),
+        showDate: showDate,
+        showTime: formattedTime,
+        hallName: screen?['name']?.toString() ?? 'Screen',
+        seats: seatsList,
         price: double.tryParse(row['total_amount']?.toString() ?? '0') ?? 0.0,
-        seatLabel: '$formattedTime | ${screen?['name'] ?? 'Screen'} | $seatLabels',
         cancelled: row['booking_status'] == 'cancelled',
       ));
     }
