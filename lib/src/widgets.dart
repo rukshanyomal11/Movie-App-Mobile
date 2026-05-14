@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import 'models.dart';
 import 'theme.dart';
@@ -1340,6 +1343,7 @@ class _TicketDetailsModal extends StatelessWidget {
                   const SizedBox(height: 40),
                   Divider(color: Colors.white.withOpacity(0.1)),
                   const SizedBox(height: 32),
+
                   Center(
                     child: Column(
                       children: [
@@ -1349,10 +1353,12 @@ class _TicketDetailsModal extends StatelessWidget {
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: const Icon(
-                            Icons.qr_code_2_rounded,
-                            size: 160,
-                            color: Colors.black,
+                          child: QrImageView(
+                            data: ticket.id,
+                            version: QrVersions.auto,
+                            size: 160.0,
+                            gapless: false,
+                            foregroundColor: Colors.black,
                           ),
                         ),
                         const SizedBox(height: 16),
