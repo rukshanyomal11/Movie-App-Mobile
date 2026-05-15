@@ -17,14 +17,55 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   String? _displayName;
+  bool _isCheckingSession = true;
 
-  void _handleAuthenticated(String displayName) {
+  @override
+  void initState() {
+    super.initState();
+    _checkInitialSession();
+    _listenToAuthChanges();
+  }
+
+  void _checkInitialSession() {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session != null) {
+      _updateUser(session.user);
+    }
     setState(() {
-      _displayName = displayName;
+      _isCheckingSession = false;
     });
   }
 
-  void _handleLogout() {
+  void _listenToAuthChanges() {
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final user = data.session?.user;
+      _updateUser(user);
+    });
+  }
+
+  void _updateUser(User? user) {
+    if (user == null) {
+      setState(() => _displayName = null);
+      return;
+    }
+
+    // Try to get name from user metadata first (set during registration)
+    final metadataName = user.userMetadata?['full_name'] as String?;
+    final name = metadataName ?? _displayNameFromEmail(user.email ?? '');
+
+    setState(() {
+      _displayName = name;
+    });
+  }
+
+  String _displayNameFromEmail(String email) {
+    final username = email.split('@').first.trim();
+    if (username.isEmpty) return 'Movie Fan';
+    return username[0].toUpperCase() + username.substring(1);
+  }
+
+  void _handleLogout() async {
+    await Supabase.instance.client.auth.signOut();
     setState(() {
       _displayName = null;
     });
@@ -32,6 +73,14 @@ class _AuthGateState extends State<AuthGate> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isCheckingSession) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.accent),
+        ),
+      );
+    }
+
     if (_displayName != null) {
       return MovieShell(
         displayName: _displayName!,
@@ -40,7 +89,7 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     return AuthScreen(
-      onAuthenticated: _handleAuthenticated,
+      onAuthenticated: (name) => setState(() => _displayName = name),
     );
   }
 }
