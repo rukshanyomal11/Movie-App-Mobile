@@ -350,14 +350,6 @@ class _AuthScreenState extends State<AuthScreen> {
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Secure authentication powered by Supabase.',
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(
-                                        color: const Color(0xFF8E8FA5),
-                                      ),
-                                ),
                               ],
                             ),
                           ),
