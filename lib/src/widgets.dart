@@ -6,6 +6,7 @@ import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import 'models.dart';
 import 'theme.dart';
 import 'utils.dart';
+import 'chat_screen.dart';
 
 class FeaturedCarousel extends StatelessWidget {
   const FeaturedCarousel({
@@ -1369,6 +1370,33 @@ class _TicketDetailsModal extends StatelessWidget {
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => ChatScreen(ticket: ticket),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.support_agent_rounded),
+                            label: const Text('Chat with Admin'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.accent,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              side: const BorderSide(color: AppColors.accent),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              textStyle: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
                         ),
                       ],
