@@ -22,6 +22,20 @@ class _ChatScreenState extends State<ChatScreen> {
   RealtimeChannel? _subscription;
   RealtimeChannel? _presenceSubscription;
 
+  String _formatTime(String? isoString) {
+    if (isoString == null) return '';
+    try {
+      final date = DateTime.parse(isoString).toLocal();
+      final hour = date.hour;
+      final minute = date.minute.toString().padLeft(2, '0');
+      final ampm = hour >= 12 ? 'PM' : 'AM';
+      final hour12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+      return '$hour12:$minute $ampm';
+    } catch (_) {
+      return '';
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -296,14 +310,28 @@ class _ChatScreenState extends State<ChatScreen> {
                             ),
                             border: isAdmin ? Border.all(color: AppColors.stroke) : null,
                           ),
-                          child: Text(
-                            message['message'] as String,
-                            style: TextStyle(
-                              color: isAdmin ? AppColors.textPrimary : Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                              height: 1.4,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: isAdmin ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                message['message'] as String,
+                                style: TextStyle(
+                                  color: isAdmin ? AppColors.textPrimary : Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.4,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _formatTime(message['created_at'] as String?),
+                                style: TextStyle(
+                                  color: isAdmin ? AppColors.textMuted : Colors.white70,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       );
