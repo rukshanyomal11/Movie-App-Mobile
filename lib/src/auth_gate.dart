@@ -18,12 +18,19 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   String? _displayName;
   bool _isCheckingSession = true;
+  RealtimeChannel? _globalPresenceChannel;
 
   @override
   void initState() {
     super.initState();
     _checkInitialSession();
     _listenToAuthChanges();
+  }
+
+  @override
+  void dispose() {
+    _globalPresenceChannel?.unsubscribe();
+    super.dispose();
   }
 
   void _checkInitialSession() {
@@ -45,9 +52,23 @@ class _AuthGateState extends State<AuthGate> {
 
   void _updateUser(User? user) {
     if (user == null) {
+      _globalPresenceChannel?.unsubscribe();
+      _globalPresenceChannel = null;
       setState(() => _displayName = null);
       return;
     }
+
+    // Always force a fresh presence connection when user is verified
+    _globalPresenceChannel?.unsubscribe();
+    _globalPresenceChannel = Supabase.instance.client.channel('system:online_users');
+    _globalPresenceChannel!.subscribe();
+    
+    // Use a small delay to guarantee the subscription is active before tracking
+    Future.delayed(const Duration(milliseconds: 800), () {
+      try {
+        _globalPresenceChannel!.track({'is_admin': false, 'user_id': user.id});
+      } catch (_) {}
+    });
 
     // Try to get name from user metadata first (set during registration)
     final metadataName = user.userMetadata?['full_name'] as String?;

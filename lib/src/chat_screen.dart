@@ -17,8 +17,10 @@ class _ChatScreenState extends State<ChatScreen> {
   final _controller = TextEditingController();
   final _messages = <Map<String, dynamic>>[];
   bool _isLoading = true;
+  bool _isAdminOnline = false;
   String? _chatId;
   RealtimeChannel? _subscription;
+  RealtimeChannel? _presenceSubscription;
 
   @override
   void initState() {
@@ -69,7 +71,7 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       }
 
-      // 4. Subscribe to live new messages (from admin)
+      // 4. Subscribe to live new messages
       _subscription = supabase
           .channel('public:chat_messages:$_chatId')
           .onPostgresChanges(
@@ -83,7 +85,6 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               callback: (payload) {
                 final newMsg = payload.newRecord;
-                // Only add if it's not our own message (we add ours optimistically)
                 if (newMsg['sender_id'] != user.id) {
                   if (mounted) {
                     setState(() {
@@ -92,6 +93,34 @@ class _ChatScreenState extends State<ChatScreen> {
                   }
                 }
               })
+          .subscribe();
+          
+      // 5. Track Global Admin Presence
+      _presenceSubscription = supabase
+          .channel('system:online_users')
+          .onPresenceSync((_) {
+            final state = _presenceSubscription?.presenceState();
+            if (state == null) return;
+            bool adminOnline = false;
+            
+            for (dynamic singleState in state) {
+              try {
+                for (dynamic presence in singleState.presences) {
+                  if (presence.payload != null && presence.payload['is_admin'] == true) {
+                    adminOnline = true;
+                  }
+                }
+              } catch (e) {
+                // Safely ignore if the structure varies between versions
+              }
+            }
+            
+            if (mounted) {
+              setState(() {
+                _isAdminOnline = adminOnline;
+              });
+            }
+          })
           .subscribe();
     } catch (e) {
       if (mounted) {
@@ -142,6 +171,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _controller.dispose();
     _subscription?.unsubscribe();
+    _presenceSubscription?.unsubscribe();
     super.dispose();
   }
 
@@ -152,9 +182,26 @@ class _ChatScreenState extends State<ChatScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Support Chat',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+            Row(
+              children: [
+                const Text(
+                  'Support Chat',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                ),
+                if (_isAdminOnline) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.greenAccent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Text('Online', style: TextStyle(color: Colors.greenAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                ],
+              ],
             ),
             Text(
               'Ticket ID: B-${widget.ticket.id.substring(0, 8).toUpperCase()}',
