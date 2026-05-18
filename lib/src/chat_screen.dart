@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'models.dart';
 import 'theme.dart';
@@ -16,55 +17,131 @@ class _ChatScreenState extends State<ChatScreen> {
   final _controller = TextEditingController();
   final _messages = <Map<String, dynamic>>[];
   bool _isLoading = true;
+  String? _chatId;
+  RealtimeChannel? _subscription;
 
   @override
   void initState() {
     super.initState();
-    _loadMessages();
+    _initChat();
   }
 
-  void _loadMessages() async {
-    // In a full implementation, this will subscribe to Supabase Realtime
-    // For now, we will show a mock welcome message to demonstrate the UI
-    await Future.delayed(const Duration(milliseconds: 500));
-    if (mounted) {
-      setState(() {
-        _messages.add({
-          'is_admin': true,
-          'text': 'Hi! How can we help you with your booking for ${widget.ticket.movie.title}?',
+  Future<void> _initChat() async {
+    final supabase = Supabase.instance.client;
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      // 1. Check if a chat already exists for this booking
+      final existingChats = await supabase
+          .from('chats')
+          .select()
+          .eq('booking_id', widget.ticket.id)
+          .limit(1);
+
+      if (existingChats.isNotEmpty) {
+        _chatId = existingChats.first['id'] as String;
+      } else {
+        // 2. Create chat if it doesn't exist
+        final newChat = await supabase
+            .from('chats')
+            .insert({
+              'user_id': user.id,
+              'booking_id': widget.ticket.id,
+              'movie_id': widget.ticket.movie.id,
+            })
+            .select()
+            .single();
+        _chatId = newChat['id'] as String;
+      }
+
+      // 3. Load past messages
+      final pastMessages = await supabase
+          .from('chat_messages')
+          .select()
+          .eq('chat_id', _chatId!)
+          .order('created_at', ascending: true);
+
+      if (mounted) {
+        setState(() {
+          _messages.addAll(List<Map<String, dynamic>>.from(pastMessages));
+          _isLoading = false;
         });
-        _isLoading = false;
-      });
+      }
+
+      // 4. Subscribe to live new messages (from admin)
+      _subscription = supabase
+          .channel('public:chat_messages:$_chatId')
+          .onPostgresChanges(
+              event: PostgresChangeEvent.insert,
+              schema: 'public',
+              table: 'chat_messages',
+              filter: PostgresChangeFilter(
+                type: PostgresChangeFilterType.eq,
+                column: 'chat_id',
+                value: _chatId,
+              ),
+              callback: (payload) {
+                final newMsg = payload.newRecord;
+                // Only add if it's not our own message (we add ours optimistically)
+                if (newMsg['sender_id'] != user.id) {
+                  if (mounted) {
+                    setState(() {
+                      _messages.add(Map<String, dynamic>.from(newMsg));
+                    });
+                  }
+                }
+              })
+          .subscribe();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  void _sendMessage() {
-    if (_controller.text.trim().isEmpty) return;
+  Future<void> _sendMessage() async {
+    if (_controller.text.trim().isEmpty || _chatId == null) return;
 
+    final text = _controller.text.trim();
+    _controller.clear();
+
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    final msg = {
+      'chat_id': _chatId,
+      'sender_id': user.id,
+      'message': text,
+      'is_admin_reply': false,
+      'created_at': DateTime.now().toIso8601String(), // Optional for optimistic UI sorting
+    };
+
+    // Optimistic UI update
     setState(() {
-      _messages.add({
-        'is_admin': false,
-        'text': _controller.text.trim(),
-      });
-      _controller.clear();
+      _messages.add(msg);
     });
 
-    // Auto reply for demo purposes
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        setState(() {
-          _messages.add({
-            'is_admin': true,
-            'text': 'Thank you! An admin will review your question and respond shortly.',
-          });
-        });
-      }
-    });
+    try {
+      // Actually send to Supabase
+      await Supabase.instance.client.from('chat_messages').insert({
+        'chat_id': _chatId,
+        'sender_id': user.id,
+        'message': text,
+        'is_admin_reply': false,
+      });
+    } catch (e) {
+      debugPrint('Failed to send message: $e');
+      // Could show a snackbar or retry logic here
+    }
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _subscription?.unsubscribe();
     super.dispose();
   }
 
@@ -107,7 +184,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     itemCount: _messages.length,
                     itemBuilder: (context, index) {
                       final message = _messages[index];
-                      final isAdmin = message['is_admin'] as bool;
+                      final isAdmin = message['is_admin_reply'] == true;
 
                       return Align(
                         alignment: isAdmin ? Alignment.centerLeft : Alignment.centerRight,
@@ -126,7 +203,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             border: isAdmin ? Border.all(color: AppColors.stroke) : null,
                           ),
                           child: Text(
-                            message['text'] as String,
+                            message['message'] as String,
                             style: TextStyle(
                               color: isAdmin ? AppColors.textPrimary : Colors.white,
                               fontSize: 15,
